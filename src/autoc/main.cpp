@@ -37,7 +37,6 @@ void sig_exit(int s) {
 	spdlog::info("Closing wg_autoc...");
 	pipe_ret_t finishRet = wg_autoc.close();
 	if (finishRet.isSuccessful()) {
-		std::cout << "Client closed.\n";
 		spdlog::info("Client closed.");
 	} else {
 		spdlog::error("Failed to close wg_autoc.");

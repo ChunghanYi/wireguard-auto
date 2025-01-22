@@ -14,6 +14,7 @@
 #include "inc/peer_tbl.h"
 #include "inc/configuration.h"
 #include "inc/common.h"
+#include "inc/vtysh.h"
 #include "spdlog/spdlog.h"
 
 WacServer::WacServer() {
@@ -103,7 +104,7 @@ void WacServer::setup_wireguard(const message_t& rmsg) {
 			"wg peer %s allowed-ips %s/32 endpoint %s:%d persistent-keepalive 25",
 			rmsg.public_key, vpnip_str, epip_str, rmsg.epPort);
 
-	bool ok_flag = runCommand(szInfo);
+	bool ok_flag = vtyshell::runCommand(szInfo);
 	if (ok_flag) {
 		char xbuf[256];
 		sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
@@ -129,7 +130,7 @@ void WacServer::remove_wireguard(const message_t& rmsg) {
 #ifdef VTYSH
 	sprintf(szInfo, "no wg peer %s", rmsg.public_key);
 
-	bool ok_flag = runCommand(szInfo);
+	bool ok_flag = vtyshell::runCommand(szInfo);
 	if (ok_flag) {
 		char xbuf[256];
 		sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");

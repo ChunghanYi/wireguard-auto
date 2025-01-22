@@ -29,6 +29,6 @@ namespace vtyshell {
 
 	void initializeVtyshMap();
 	std::vector<std::string> split(std::string s, std::string delimiter);
-	bool runCommand(std::string& fullcmd);
+	bool runCommand(const char* buf);
 	bool doAction(std::string& s);
 };
