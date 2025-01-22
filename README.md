@@ -1,5 +1,5 @@
 # wireguard-auto
-WireGuard AutoConnect Client &amp; Server
+WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
 It's currently in development(v0.1.99). 😎
