@@ -10,8 +10,19 @@ It's currently in development(v0.1.99). 😎
 ```
 <Ubuntu 22.04 LTS>
 $ ./build.sh
+ -> for x86_64 machine
 ...
 ~
+
+$ ./build_arm64.sh
+ -> for arm64 machine
+...
+~
+
+$ cd build
+$ ls -l
+-rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
+-rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
 
 $ cd build
 $ ls -l
