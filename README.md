@@ -24,11 +24,6 @@ $ ls -l
 -rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
 -rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
 
-$ cd build
-$ ls -l
--rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
--rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
-
 ```
 
 ## How to run on Ubuntu 22.04 LTS
@@ -65,7 +60,8 @@ $ sudo ./wg_autoc -f 127.0.0.1 ../config/client.conf
 
 ## How to install on NanoPi R5S or Gl-iNet MT2500 
 ```
-<TBD>
+Please refer to the Chapter 4 of my blog post below.
+  https://slowbootkernelhacks.blogspot.com/2025/01/modern-c-quantum-resistant-wireguard.html
 
 --------------------
 Good luck~
@@ -73,7 +69,8 @@ Slowboot
 ```
 
 ## My blog posting for this project
-  For more information, please read the blog posting below.<br>
+  For more information, please refer to my blog post below.<br>
+  https://slowbootkernelhacks.blogspot.com/2025/01/modern-c-quantum-resistant-wireguard.html
   <br>
 
 ## Reference codes
