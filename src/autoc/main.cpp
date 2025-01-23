@@ -96,16 +96,16 @@ int main(int argc, char **argv) {
 
 	// connect client to an open server
 	bool connected = false;
-    while (!connected) {
-        pipe_ret_t connectRet = wg_autoc.connectTo(argv[2], 51822);
-        connected = connectRet.isSuccessful();
-        if (connected) {
+	while (!connected) {
+		pipe_ret_t connectRet = wg_autoc.connectTo(argv[2], 51822);
+		connected = connectRet.isSuccessful();
+		if (connected) {
 			spdlog::info("Client connected successfully");
-        } else {
+		} else {
 			spdlog::info("Client failed to connect: {}", connectRet.message());
-            sleep(2);
+			sleep(2);
 			spdlog::info("Retrying to connect...");
-        }
+		}
 	};
 
 	// main: PING-PONG protocol

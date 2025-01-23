@@ -18,13 +18,13 @@ struct peer_table {
 	struct in_addr vpnIP;                    // VPN IP address
 	struct in_addr vpnNetmask;               // VPN Subnet Mask
 
-    uint8_t public_key[WG_KEY_LEN_BASE64];   // my public key
+	uint8_t public_key[WG_KEY_LEN_BASE64];   // my public key
 	struct in_addr epIP;                     // 4 bytes : my endpoint IP address (IPv4)
-    uint16_t epPort;                         // peer endpoint point(SPN port)
-    uint8_t allowed_ips[256];                // peer allowed ips(networks)
+	uint16_t epPort;                         // peer endpoint point(SPN port)
+	uint8_t allowed_ips[256];                // peer allowed ips(networks)
 	time_t time;                             // last message received (time(NULL))
 
-    int wireguard_enabled;                   // wireguard enabled(0 or 1)
+	int wireguard_enabled;                   // wireguard enabled(0 or 1)
 };
 
 using peer_table_t = struct peer_table;

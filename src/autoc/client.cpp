@@ -56,7 +56,7 @@ void WacClient::setAddress(const std::string& address, int port) {
 	const int inetSuccess = inet_aton(address.c_str(), &_server.sin_addr);
 
 	if (!inetSuccess) { // inet_addr failed to parse address
-						// if hostname is not in IP strings and dots format, try resolve it
+                        // if hostname is not in IP strings and dots format, try resolve it
 		struct hostent *host;
 		struct in_addr **addrList;
 		if ((host = gethostbyname(address.c_str())) == nullptr) {
