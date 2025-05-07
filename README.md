@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.1.99). 😎
+It's currently in development(v0.2.00). 😎
 
 ```
 
@@ -29,7 +29,15 @@ $ ls -l
 ## How to run on Ubuntu 22.04 LTS
 ```
 <server side>
-$ sudo ./wg_autod -f ../config/server.conf 
+$ sudo ./wg_autod --help
+Allowed options:
+  --help                Print help message
+  --version             Show version
+  --daemon              Detach from the terminal(run it in background)
+  --foreground          Run it in foreground
+  --config arg          Set path to custom configuration file
+
+$ sudo ./wg_autod --foreground --config ../config/server.conf
 [2025-01-22 13:08:33.373] [info] Starting the wg_autod(tcp port 51822)...
 [2025-01-22 13:08:40.755] [info] >>> HELLO message received.
 [2025-01-22 13:08:40.755] [info] <<< HELLO message sent to client.
@@ -40,7 +48,16 @@ $ sudo ./wg_autod -f ../config/server.conf
 ...
 
 <client side>
-$ sudo ./wg_autoc -f 127.0.0.1 ../config/client.conf
+$ sudo ./wg_autoc --help
+Allowed options:
+  --help                Print help message
+  --version             Show version
+  --daemon              Detach from the terminal(run it in background)
+  --foreground          Run it in foreground
+  --server arg          Specify the server ip address
+  --config arg          Set path to custom configuration file
+
+$ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 [2025-01-22 13:09:06.870] [info] Client connected successfully
 [2025-01-22 13:09:06.870] [info] >>> HELLO message sent to server.
 [2025-01-22 13:09:07.370] [info] <<< HELLO message received.
