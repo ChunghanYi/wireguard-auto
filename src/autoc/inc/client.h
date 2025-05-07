@@ -29,10 +29,10 @@
 #include "message.h"
 #include "configuration.h"
 
-class WacClient {
+class WgacClient {
 public:
-	WacClient();
-	~WacClient();
+	WgacClient();
+	~WgacClient();
 	pipe_ret_t connectTo(const std::string& address, int port);
 	pipe_ret_t sendMsg(const char* msg, size_t size);
 

@@ -24,6 +24,19 @@ build_it()
 			cd $CPPPATH
 		fi
 
+		if [ ! -d ./external/boost_1_88_0 ]; then
+			cd external
+			if [ -r boost_1_88_0.tgz ]; then
+				tar xvzf boost_1_88_0.tgz > /dev/null 2>&1
+				cd boost_1_88_0
+				./bootstrap.sh
+				./b2
+				./b2 headers
+			fi
+			cd $CPPPATH
+		fi
+
+		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
 			mkdir -p build
 		fi
@@ -31,7 +44,9 @@ build_it()
 		cmake .. && make
 	elif [ $1 = "clean" ]; then
 		rm -rf ./build > /dev/null 2>&1
-		rm -rf ./external > /dev/null 2>&1
+		rm -rf ./external/lib > /dev/null 2>&1
+		rm -rf ./external/spdlog > /dev/null 2>&1
+		rm -rf ./external/boost_1_88_0 > /dev/null 2>&1
 	fi
 }
 

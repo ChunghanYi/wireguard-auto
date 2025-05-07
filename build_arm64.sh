@@ -14,37 +14,68 @@ export CPP=aarch64-openwrt-linux-musl-g++
 export AR=aarch64-openwrt-linux-musl-ar
 export RANLIB=aarch64-openwrt-linux-musl-ranlib
 
-if [ -d ./build ]; then
-	rm -rf ./build > /dev/null 2>&1
-	if [ -d ./external/spdlog ]; then
-		rm -rf ./external > /dev/null 2>&1
+build_it()
+{
+	WGAC_PATH=$(pwd)
+	if [ $1 = "release" ]; then
+		if [ ! -d ./external/spdlog ]; then
+			mkdir -p external > /dev/null 2>&1
+			cd external
+			git clone https://github.com/gabime/spdlog
+			cd spdlog
+			mkdir build && cd build
+
+			cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm64v8 \
+				-DCMAKE_CXX_COMPILER=$TOOLCHAIN_PATH/aarch64-openwrt-linux-musl-g++ \
+				..
+			make
+
+			if [ ! -d $WGAC_PATH/external/lib ]; then
+				mkdir $WGAC_PATH/external/lib > /dev/null 2>&1
+			fi
+			cp ./libspdlog.a ../../lib > /dev/null 2>&1
+			cd ..
+			cp -R ./include ../lib > /dev/null 2>&1
+			cd $WGAC_PATH
+		fi
+
+		if [ ! -d ./external/boost_1_88_0 ]; then
+			cd external
+			if [ -r boost_1_88_0.tgz ]; then
+				tar xvzf boost_1_88_0.tgz > /dev/null 2>&1
+				cd boost_1_88_0
+				cp ../misc/user-config.jam . > /dev/null 2>&1
+				./bootstrap.sh
+				./b2 toolset=gcc-arm64 target-os=linux --user-config=user-config.jam --without-context --without-coroutine --without-python -threading=multi
+			else
+				echo "Oops boost_1_88_0.tgz file not found !"
+				exit
+			fi
+			cd $WGAC_PATH
+		fi
+
+		#for wg autoconnect client/server
+		if [ ! -d ./build ]; then
+			mkdir -p build
+		fi
+		cd build
+		cmake .. && make
+
+	elif [ $1 = "clean" ]; then
+		rm -rf ./build > /dev/null 2>&1
+		rm -rf ./external/lib > /dev/null 2>&1
+		rm -rf ./external/spdlog > /dev/null 2>&1
+		rm -rf ./external/boost_1_88_0 > /dev/null 2>&1
 	fi
-fi
+}
 
-WGAC_PATH=$(pwd)
-if [ ! -d ./external/spdlog ]; then
-	mkdir -p external > /dev/null 2>&1
-	cd external
-	git clone https://github.com/gabime/spdlog
-	cd spdlog
-	mkdir build && cd build
-
-	cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm64v8 \
-		-DCMAKE_CXX_COMPILER=$TOOLCHAIN_PATH/aarch64-openwrt-linux-musl-g++ \
-		..
-	make
-
-	if [ ! -d $WGAC_PATH/external/lib ]; then
-		mkdir $WGAC_PATH/external/lib > /dev/null 2>&1
+start_now()
+{
+	if [ $# -eq 0 ]; then
+		echo "Usage: $0 release|clean"
+		exit 0
 	fi
-	cp ./libspdlog.a ../../lib > /dev/null 2>&1
-	cd ..
-	cp -R ./include ../lib > /dev/null 2>&1
-	cd $WGAC_PATH
-fi
+	build_it $1
+}
 
-if [ ! -d ./build ]; then
-	mkdir -p build
-fi
-cd build
-cmake .. && make
+start_now $1

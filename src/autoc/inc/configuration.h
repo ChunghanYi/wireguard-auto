@@ -14,7 +14,7 @@ public:
 	Config() {};
 	~Config() {};
 
-	void parse(const std::string& path); 
+	bool parse(const std::string& path); 
 	bool contains(const std::string& key);
 	bool getbool(const std::string& key);
 	int getint(const std::string& key);

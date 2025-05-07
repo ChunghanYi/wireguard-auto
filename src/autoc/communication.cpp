@@ -19,7 +19,9 @@
 #include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
-/* Get local mac address */
+/**
+ * Get local mac address
+ */
 void get_local_mac_address(char* macaddr) {
 	struct ifreq s;
 	int fd, i;
@@ -38,7 +40,9 @@ void get_local_mac_address(char* macaddr) {
 	}
 }
 
-/* Initialize a message with the given fields */
+/**
+ * Initialize a message with the given fields
+ */
 static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, uint32_t mask) {
 	memset(smsg, 0, sizeof(message_t));
 	smsg->type = type;
@@ -47,10 +51,10 @@ static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, u
 	smsg->vpnNetmask.s_addr = mask;
 }
 
-/*
+/**
  * Send a HELLO message and receive an HELLO/NOK message
  */
-bool WacClient::send_hello_message() {
+bool WgacClient::send_hello_message() {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
@@ -89,10 +93,10 @@ bool WacClient::send_hello_message() {
 	}
 }
 
-/*
+/**
  * Send a PING message and receive a PONG/NOK message
  */
-bool WacClient::send_ping_message(message_t *pmsg) {
+bool WgacClient::send_ping_message(message_t* pmsg) {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::PING, 0, 0);
@@ -140,10 +144,10 @@ bool WacClient::send_ping_message(message_t *pmsg) {
 	}
 }
 
-/*
+/**
  * Send a BYE message and receive an BYE/NOK message
  */
-bool WacClient::send_bye_message() {
+bool WgacClient::send_bye_message() {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::BYE, 0, 0);
@@ -184,10 +188,10 @@ bool WacClient::send_bye_message() {
 	}
 }
 
-/*
+/**
  * Extract a message from message queue.
  */
-bool WacClient::handle_message_queue(message_t* pmsg) {
+bool WgacClient::handle_message_queue(message_t* pmsg) {
 	time_t t, last_time = 0;
 	last_time = time(NULL);
 
@@ -207,10 +211,10 @@ bool WacClient::handle_message_queue(message_t* pmsg) {
 	return false;
 }
 
-/*
+/**
  * Setup wireguard configuration with the wg tool or vtysh.
  */
-void WacClient::setup_wireguard(message_t* rmsg) {
+void WgacClient::setup_wireguard(message_t* rmsg) {
 	char szInfo[512] = {};
 	char vpnip_str[32] = {};
 	char epip_str[32] = {};
@@ -240,10 +244,10 @@ void WacClient::setup_wireguard(message_t* rmsg) {
 	spdlog::info("OK, wireguard setup is complete.");
 }
 
-/*
+/**
  * Remove a wireguard configuration with the wg tool or vtysh.
  */
-void WacClient::remove_wireguard(message_t* rmsg) {
+void WgacClient::remove_wireguard(message_t* rmsg) {
 	char szInfo[256] = {};
 
 #ifdef VTYSH
@@ -264,10 +268,10 @@ void WacClient::remove_wireguard(message_t* rmsg) {
 	spdlog::info("OK, wireguard rule is removed.");
 }
 
-/*
+/**
  * Register this to the server.
  */
-void WacClient::start_wgauto_protocol() {
+void WgacClient::start_wgauto_protocol() {
 	message_t rmsg;
 
 	while (1) {

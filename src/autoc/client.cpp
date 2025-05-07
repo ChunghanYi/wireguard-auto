@@ -8,16 +8,16 @@
 #include "inc/client.h"
 #include "inc/common.h"
 
-WacClient::WacClient() {
+WgacClient::WgacClient() {
 	_isConnected = false;
 	_isClosed = true;
 }
 
-WacClient::~WacClient() {
+WgacClient::~WgacClient() {
 	close();
 }
 
-pipe_ret_t WacClient::connectTo(const std::string& address, int port) {
+pipe_ret_t WgacClient::connectTo(const std::string& address, int port) {
 	try {
 		initializeSocket();
 		setAddress(address, port);
@@ -38,11 +38,11 @@ pipe_ret_t WacClient::connectTo(const std::string& address, int port) {
 	return pipe_ret_t::success();
 }
 
-void WacClient::startReceivingMessages() {
-	_receiveTask = new std::thread(&WacClient::receiveTask, this);
+void WgacClient::startReceivingMessages() {
+	_receiveTask = new std::thread(&WgacClient::receiveTask, this);
 }
 
-void WacClient::initializeSocket() {
+void WgacClient::initializeSocket() {
 	pipe_ret_t ret;
 
 	_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
@@ -52,7 +52,7 @@ void WacClient::initializeSocket() {
 	}
 }
 
-void WacClient::setAddress(const std::string& address, int port) {
+void WgacClient::setAddress(const std::string& address, int port) {
 	const int inetSuccess = inet_aton(address.c_str(), &_server.sin_addr);
 
 	if (!inetSuccess) { // inet_addr failed to parse address
@@ -69,7 +69,7 @@ void WacClient::setAddress(const std::string& address, int port) {
 	_server.sin_port = htons(port);
 }
 
-pipe_ret_t WacClient::sendMsg(const char* msg, size_t size) {
+pipe_ret_t WgacClient::sendMsg(const char* msg, size_t size) {
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
 	if (numBytesSent < 0) { // send failed
@@ -86,7 +86,7 @@ pipe_ret_t WacClient::sendMsg(const char* msg, size_t size) {
 /*
  * Receive server packets, and notify user
  */
-void WacClient::receiveTask() {
+void WgacClient::receiveTask() {
 	while(_isConnected) {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
 
@@ -115,7 +115,7 @@ void WacClient::receiveTask() {
 	}
 }
 
-void WacClient::terminateReceiveThread() {
+void WgacClient::terminateReceiveThread() {
 	_isConnected = false;
 
 	if (_receiveTask) {
@@ -125,7 +125,7 @@ void WacClient::terminateReceiveThread() {
 	}
 }
 
-pipe_ret_t WacClient::close() {
+pipe_ret_t WgacClient::close() {
 	if (_isClosed) {
 		return pipe_ret_t::failure("client is already closed");
 	}

@@ -16,10 +16,10 @@
 #include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
-/*
+/**
  * Get a peer(remote client) from the rclient table
  */
-peer_table_t *WacServer::get_peer_table(const message_t& rmsg) {
+peer_table_t *WgacServer::get_peer_table(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -39,10 +39,10 @@ peer_table_t *WacServer::get_peer_table(const message_t& rmsg) {
 	}
 }
 
-/*
+/**
  * Add a peer(remote client) to the rclient table
  */
-bool WacServer::add_peer_table(const message_t& rmsg) {
+bool WgacServer::add_peer_table(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -71,10 +71,10 @@ bool WacServer::add_peer_table(const message_t& rmsg) {
 	}
 }
 
-/*
+/**
  * Update a peer(remote client) info to the rclient table
  */
-bool WacServer::update_peer_table(const message_t& rmsg) {
+bool WgacServer::update_peer_table(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -101,10 +101,10 @@ bool WacServer::update_peer_table(const message_t& rmsg) {
 	}
 }
 
-/*
+/**
  * Remove a peer(remote client) info from the rclient table
  */
-bool WacServer::remove_peer_table(const message_t& rmsg) {
+bool WgacServer::remove_peer_table(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",

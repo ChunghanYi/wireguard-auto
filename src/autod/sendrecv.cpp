@@ -49,7 +49,7 @@ void Client::send(const char* msg, size_t msgSize) const {
 	}
 }
 
-/*
+/**
  * Receive client packets, and notify user
  */
 void Client::receiveTask() {
@@ -81,7 +81,7 @@ void Client::receiveTask() {
 	}
 }
 
-/*
+/**
  * Send a reply message to client
  */
 void Client::publishEvent(ClientEvent clientEvent, const message_t& msg) {

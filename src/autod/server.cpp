@@ -17,17 +17,17 @@
 #include "inc/vtysh.h"
 #include "spdlog/spdlog.h"
 
-WacServer::WacServer() {
+WgacServer::WgacServer() {
 	_clients.reserve(10);
 	_stopRemoveClientsTask = false;
 	_flagTerminate = false;
 }
 
-WacServer::~WacServer() {
+WgacServer::~WgacServer() {
 	close();
 }
 
-void WacServer::printClients() {
+void WgacServer::printClients() {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 	if (_clients.empty()) {
 		std::cout << "no connected clients\n";
@@ -40,7 +40,7 @@ void WacServer::printClients() {
 /**
  * Remove dead clients (disconnected) from clients vector periodically
  */
-void WacServer::removeDeadClients() {
+void WgacServer::removeDeadClients() {
 	std::vector<Client*>::const_iterator clientToRemove;
 	while (!_stopRemoveClientsTask) {
 		{
@@ -62,7 +62,7 @@ void WacServer::removeDeadClients() {
 	}
 }
 
-void WacServer::terminateDeadClientsRemover() {
+void WgacServer::terminateDeadClientsRemover() {
 	if (_clientsRemoverThread) {
 		_stopRemoveClientsTask = true;
 		_clientsRemoverThread->join();
@@ -75,7 +75,7 @@ void WacServer::terminateDeadClientsRemover() {
  * Handle different client events. Subscriber callbacks should be short and fast, and must not
  * call other server functions to avoid deadlock
  */
-void WacServer::clientEventHandler(const Client& client, ClientEvent event, const message_t& msg) {
+void WgacServer::clientEventHandler(const Client& client, ClientEvent event, const message_t& msg) {
 	switch (event) {
 		case ClientEvent::DISCONNECTED: {
 			handleClientDisconnected(client.getIp(), msg);
@@ -88,10 +88,10 @@ void WacServer::clientEventHandler(const Client& client, ClientEvent event, cons
 	}
 }
 
-/*
+/**
  * Setup wireguard configuration with the wg tool or vtysh.
  */
-void WacServer::setup_wireguard(const message_t& rmsg) {
+void WgacServer::setup_wireguard(const message_t& rmsg) {
 	char szInfo[512] = {};
 	char vpnip_str[32] = {};
 	char epip_str[32] = {};
@@ -121,10 +121,10 @@ void WacServer::setup_wireguard(const message_t& rmsg) {
 	spdlog::info("OK, wireguard setup is complete.");
 }
 
-/*
+/**
  * Remove a wireguard configuration with the wg tool or vtysh.
  */
-void WacServer::remove_wireguard(const message_t& rmsg) {
+void WgacServer::remove_wireguard(const message_t& rmsg) {
 	char szInfo[256] = {};
 
 #ifdef VTYSH
@@ -145,10 +145,10 @@ void WacServer::remove_wireguard(const message_t& rmsg) {
 	spdlog::info("OK, wireguard rule is removed.");
 }
 
-/*
- * Handle messages come from each client
+/**
+ * Handle messages come from each client(= peer)
  */
-void WacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
+void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 	switch (rmsg.type) {
 		case AUTOCONN::HELLO:
 			spdlog::info(">>> HELLO message received.");
@@ -218,16 +218,16 @@ void WacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 	}
 }
 
-void WacServer::handleClientDisconnected(const std::string& clientIP, const message_t& rmsg) {
+void WgacServer::handleClientDisconnected(const std::string& clientIP, const message_t& rmsg) {
 }
 
-/*
+/**
  * Bind port and start listening
  * Return tcp_ret_t
  */
-pipe_ret_t WacServer::start(int port, int maxNumOfClients, bool removeDeadClientsAutomatically) {
+pipe_ret_t WgacServer::start(int port, int maxNumOfClients, bool removeDeadClientsAutomatically) {
 	if (removeDeadClientsAutomatically) {
-		_clientsRemoverThread = new std::thread(&WacServer::removeDeadClients, this);
+		_clientsRemoverThread = new std::thread(&WgacServer::removeDeadClients, this);
 	}
 	try {
 		initializeSocket();
@@ -239,7 +239,7 @@ pipe_ret_t WacServer::start(int port, int maxNumOfClients, bool removeDeadClient
 	return pipe_ret_t::success();
 }
 
-void WacServer::initializeSocket() {
+void WgacServer::initializeSocket() {
 	_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
 	const bool socketFailed = (_sockfd.get() == -1);
 	if (socketFailed) {
@@ -251,7 +251,7 @@ void WacServer::initializeSocket() {
 	setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 }
 
-void WacServer::bindAddress(int port) {
+void WgacServer::bindAddress(int port) {
 	memset(&_serverAddress, 0, sizeof(_serverAddress));
 	_serverAddress.sin_family = AF_INET;
 	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -264,7 +264,7 @@ void WacServer::bindAddress(int port) {
 	}
 }
 
-void WacServer::listenToClients(int maxNumOfClients) {
+void WgacServer::listenToClients(int maxNumOfClients) {
 	const int clientsQueueSize = maxNumOfClients;
 	const bool listenFailed = (listen(_sockfd.get(), clientsQueueSize) == -1);
 	if (listenFailed) {
@@ -272,7 +272,7 @@ void WacServer::listenToClients(int maxNumOfClients) {
 	}
 }
 
-/*
+/**
  * Accept and handle new client socket. To handle multiple clients, user must
  * call this function in a loop to enable the acceptance of more than one.
  * If timeout argument equal 0, this function is executed in blocking mode.
@@ -280,7 +280,7 @@ void WacServer::listenToClients(int maxNumOfClients) {
  * mode (async) and will quit after timeout seconds if no client tried to connect.
  * Return accepted client IP, or throw error if failed
  */
-std::string WacServer::acceptClient(uint timeout) {
+std::string WgacServer::acceptClient(uint timeout) {
 	const pipe_ret_t waitingForClient = waitForClient(timeout);
 	if (!waitingForClient.isSuccessful()) {
 		throw std::runtime_error(waitingForClient.message());
@@ -297,7 +297,7 @@ std::string WacServer::acceptClient(uint timeout) {
 	auto newClient = new Client(fileDescriptor);
 	newClient->setIp(inet_ntoa(_clientAddress.sin_addr));
 	using namespace std::placeholders;
-	newClient->setEventsHandler(std::bind(&WacServer::clientEventHandler, this, _1, _2, _3));
+	newClient->setEventsHandler(std::bind(&WgacServer::clientEventHandler, this, _1, _2, _3));
 	newClient->startListen(); /* receive packets from client */
 
 	std::lock_guard<std::mutex> lock(_clientsMtx);
@@ -306,7 +306,7 @@ std::string WacServer::acceptClient(uint timeout) {
 	return newClient->getIp();
 }
 
-pipe_ret_t WacServer::waitForClient(uint32_t timeout) {
+pipe_ret_t WgacServer::waitForClient(uint32_t timeout) {
 	if (timeout > 0) {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd, timeout);
 		const bool noIncomingClient = (!FD_ISSET(_sockfd.get(), &_fds));
@@ -323,11 +323,11 @@ pipe_ret_t WacServer::waitForClient(uint32_t timeout) {
 	return pipe_ret_t::success();
 }
 
-/*
+/**
  * Send message to all connected clients.
  * Return true if message was sent successfully to all clients
  */
-pipe_ret_t WacServer::sendToAllClients(const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToAllClients(const char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
 	for (const Client *client : _clients) {
@@ -340,11 +340,11 @@ pipe_ret_t WacServer::sendToAllClients(const char* msg, size_t size) {
 	return pipe_ret_t::success();
 }
 
-/*
+/**
  * Send message to specific client (determined by client IP address).
  * Return true if message was sent successfully
  */
-pipe_ret_t WacServer::sendToClient(const Client& client, const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToClient(const Client& client, const char* msg, size_t size) {
 	try {
 		client.send(msg, size);
 	} catch (const std::runtime_error &error) {
@@ -354,7 +354,7 @@ pipe_ret_t WacServer::sendToClient(const Client& client, const char* msg, size_t
 	return pipe_ret_t::success();
 }
 
-pipe_ret_t WacServer::sendToClient(const std::string& clientIP, const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, const char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
 	const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
@@ -368,10 +368,10 @@ pipe_ret_t WacServer::sendToClient(const std::string& clientIP, const char* msg,
 	return sendToClient(client, msg, size);
 }
 
-/*
+/**
  * Send message to specific client (determined by client IP address) with OK or NOK string.
  */
-bool WacServer::sendMessage(const Client& client, const message_t& msg) {
+bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 	message_t smsg;
 	memcpy(&smsg, &msg, sizeof(message_t));
 
@@ -384,51 +384,51 @@ bool WacServer::sendMessage(const Client& client, const message_t& msg) {
 	return true;
 }
 
-bool WacServer::send_HELLO(const Client& client, const message_t& smsg) {
+bool WgacServer::send_HELLO(const Client& client, const message_t& smsg) {
 	spdlog::info("<<< HELLO message sent to client.");
 	return sendMessage(client, smsg);
 }
 
-bool WacServer::send_OK(const Client& client, const message_t& smsg) {
+bool WgacServer::send_OK(const Client& client, const message_t& smsg) {
 	spdlog::info("<<< OK message sent to client.");
 	return sendMessage(client, smsg);
 }
 
-bool WacServer::send_NOK(const Client& client) {
+bool WgacServer::send_NOK(const Client& client) {
 	spdlog::info("<<< NOK message sent to client.");
 	message_t smsg;
 	return sendMessage(client, smsg);
 }
 
-bool WacServer::send_PONG(const Client& client, const message_t& smsg) {
+bool WgacServer::send_PONG(const Client& client, const message_t& smsg) {
 	spdlog::info("<<< PONG message sent to client.");
 	return sendMessage(client, smsg);
 }
 
-bool WacServer::send_BYE(const Client& client, const message_t& smsg) {
+bool WgacServer::send_BYE(const Client& client, const message_t& smsg) {
 	spdlog::info("<<< BYE message sent to client.");
 	return sendMessage(client, smsg);
 }
 
-/*
+/**
  * Get a flag value to terminiate program.
  */
-bool WacServer::shouldTerminate() {
+bool WgacServer::shouldTerminate() {
 	return _flagTerminate;
 }
 
-/*
+/**
  * Set a flag value to terminiate program.
  */
-void WacServer::setTerminate(bool flag) {
+void WgacServer::setTerminate(bool flag) {
 	_flagTerminate = flag;
 }
 
-/*
+/**
  * Close server and clients resources.
  * Return true is successFlag, false otherwise
  */
-pipe_ret_t WacServer::close() {
+pipe_ret_t WgacServer::close() {
 	terminateDeadClientsRemover();
 	{ // close clients
 		std::lock_guard<std::mutex> lock(_clientsMtx);

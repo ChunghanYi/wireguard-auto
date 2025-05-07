@@ -13,7 +13,13 @@ set_target_properties(spdlog
 	PROPERTIES IMPORTED_LOCATION
 	${CMAKE_SOURCE_DIR}/external/lib/libspdlog.a)
 
-include_directories(${CMAKE_SOURCE_DIR}/external/lib/include)
+add_library(boost_program_options STATIC IMPORTED)
+set_target_properties(boost_program_options
+	PROPERTIES IMPORTED_LOCATION
+	${CMAKE_SOURCE_DIR}/external/boost_1_88_0/stage/lib/libboost_program_options.a)
+
+include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
+	${CMAKE_SOURCE_DIR}/external/boost_1_88_0)
 add_definitions(-DVTYSH)
 
 #server
@@ -25,13 +31,13 @@ add_executable(wg_autod
 		src/autod/vtysh.cpp
 		src/autod/configuration.cpp
 		src/autod/common.cpp)
-target_link_libraries (wg_autod spdlog)
+target_link_libraries (wg_autod spdlog boost_program_options)
 
 #client
 add_executable(wg_autoc
 		src/autoc/main.cpp
 		src/autoc/client.cpp
 		src/autoc/communication.cpp
-		src/autod/configuration.cpp
+		src/autoc/configuration.cpp
 		src/autoc/common.cpp)
-target_link_libraries (wg_autoc spdlog)
+target_link_libraries (wg_autoc spdlog boost_program_options)
