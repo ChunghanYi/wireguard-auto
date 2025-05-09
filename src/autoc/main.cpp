@@ -12,17 +12,16 @@
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
 
-WgacClient wg_autoc;
-
-const std::string versionString { "v0.2.00" };
+WgacClient wgacc;
+const std::string versionString { "v0.2.02" };
 std::string server_ip;
 
 void sig_exit(int s) {
-	wg_autoc.send_bye_message();
+	wgacc.send_bye_message();
 	sleep(1);
 
 	spdlog::info("Closing wg_autoc...");
-	pipe_ret_t finishRet = wg_autoc.close();
+	pipe_ret_t finishRet = wgacc.close();
 	if (finishRet.isSuccessful()) {
 		spdlog::info("Client closed.");
 	} else {
@@ -73,7 +72,7 @@ void redirect_fds() {
 #pragma GCC diagnostic pop
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
 	bool daemonize = false;
 	namespace po = boost::program_options;
 
@@ -114,7 +113,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (vm.count("config")) {
-			wg_autoc.getConf().parse(vm["config"].as<std::string>());
+			wgacc.getConf().parse(vm["config"].as<std::string>());
 		} else {
 			spdlog::error("Configuration file is not specified.");
 			return EXIT_FAILURE;
@@ -160,7 +159,7 @@ int main(int argc, char** argv) {
 	// connect client to an open server
 	bool connected = false;
 	while (!connected) {
-		pipe_ret_t connectRet = wg_autoc.connectTo(server_ip, 51822);
+		pipe_ret_t connectRet = wgacc.connectTo(server_ip, 51822);
 		connected = connectRet.isSuccessful();
 		if (connected) {
 			spdlog::info("Client connected successfully");
@@ -172,7 +171,7 @@ int main(int argc, char** argv) {
 	};
 
 	// main: PING-PONG protocol
-	wg_autoc.start_wgauto_protocol();
+	wgacc.start();
 
 	return 0;
 }

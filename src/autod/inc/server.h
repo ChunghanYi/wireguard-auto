@@ -28,6 +28,7 @@
 #include "file_descriptor.h"
 #include "message.h"
 #include "peer_tbl.h"
+#include "vip_pool.h"
 #include "configuration.h"
 
 class WgacServer {
@@ -55,12 +56,10 @@ public:
 	bool shouldTerminate();
 	void setTerminate(bool flag);
 
-	peer_table_t *get_peer_table(const message_t& rmsg);
+	peer_table_t* get_peer_table(const message_t& rmsg);
 	bool add_peer_table(const message_t& rmsg);
 	bool update_peer_table(const message_t& rmsg);
 	bool remove_peer_table(const message_t& rmsg);
-
-	Config& getConf() { return _autoConf; };
 
 	pipe_ret_t close();
 	void printClients();
@@ -75,9 +74,7 @@ private:
 	std::thread* _clientsRemoverThread = nullptr;
 	std::atomic<bool> _stopRemoveClientsTask;
 
-	std::map<std::string, peer_table_t *> peers;
-	Config _autoConf;
-
+	std::map<std::string, peer_table_t*> peers;
 	bool _flagTerminate;
 
 	void handleClientMsg(const Client& client, const message_t& rmsg);

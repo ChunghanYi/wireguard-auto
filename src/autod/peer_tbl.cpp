@@ -19,7 +19,7 @@
 /**
  * Get a peer(remote client) from the rclient table
  */
-peer_table_t *WgacServer::get_peer_table(const message_t& rmsg) {
+peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -35,7 +35,7 @@ peer_table_t *WgacServer::get_peer_table(const message_t& rmsg) {
 	if (it != peers.end()) {
 		return it->second;
 	} else {
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -54,7 +54,7 @@ bool WgacServer::add_peer_table(const message_t& rmsg) {
 	};
 	std::string macstr = get_mac_addr();
 
-	peer_table_t *peer = get_peer_table(rmsg);
+	peer_table_t* peer = get_peer_table(rmsg);
 	if (peer == nullptr) {
 		peer_table_t *peer = new peer_table_t;
 		if (peer) {
@@ -86,7 +86,7 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
 	};
 	std::string macstr = get_mac_addr();
 
-	peer_table_t *peer = get_peer_table(rmsg);
+	peer_table_t* peer = get_peer_table(rmsg);
 	if (peer) {
 		memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 		peer->vpnIP.s_addr = rmsg.vpnIP.s_addr;

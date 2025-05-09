@@ -30,6 +30,7 @@ add_executable(wg_autod
 		src/autod/peer_tbl.cpp
 		src/autod/vtysh.cpp
 		src/autod/configuration.cpp
+		src/autod/vip_pool.cpp
 		src/autod/common.cpp)
 target_link_libraries (wg_autod spdlog boost_program_options)
 

@@ -36,7 +36,7 @@ public:
 	pipe_ret_t connectTo(const std::string& address, int port);
 	pipe_ret_t sendMsg(const char* msg, size_t size);
 
-	void start_wgauto_protocol();
+	void start();
 	bool handle_message_queue(message_t* pmsg);
 	bool send_hello_message();
 	bool send_ping_message(message_t* pmsg);

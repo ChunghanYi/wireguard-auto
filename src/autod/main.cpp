@@ -15,8 +15,10 @@
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
 
-WgacServer wg_autod;
-const std::string versionString { "v0.2.00" }; 
+WgacServer wgacs;
+Config configurations;
+VipTable viptable;
+const std::string versionString { "v0.2.02" }; 
 
 static void sig_handler(int sig) {
 	switch (sig) {
@@ -24,8 +26,8 @@ static void sig_handler(int sig) {
 		case SIGTERM:
 		case SIGQUIT:
 			spdlog::info(">>> Received signal {}, exiting...", sig);
-			wg_autod.setTerminate(true);
-			wg_autod.close();
+			wgacs.setTerminate(true);
+			wgacs.close();
 			exit(EXIT_SUCCESS);
 			break;
 		default:
@@ -77,13 +79,13 @@ void redirect_fds() {
 
 void acceptClients() {
 	try {
-		std::string clientIP = wg_autod.acceptClient(0);
+		std::string clientIP = wgacs.acceptClient(0);
 	} catch (const std::runtime_error &error) {
 		spdlog::error("Accepting client failed: {}", error.what());
 	}
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
 	bool daemonize = false;
 	namespace po = boost::program_options;
 
@@ -116,7 +118,7 @@ int main(int argc, char** argv) {
 		}
 
 		if (vm.count("config")) {
-			if (wg_autod.getConf().parse(vm["config"].as<std::string>()) == false) {
+			if (configurations.parse(vm["config"].as<std::string>()) == false) {
 				return EXIT_FAILURE;
 			}
 		} else {
@@ -161,19 +163,21 @@ int main(int argc, char** argv) {
 	::signal(SIGQUIT, sig_handler);
 	::signal(SIGTERM, sig_handler);
 
-	spdlog::info("Starting the wg_autod(tcp port 51822)...");
+	viptable.init_vip_table();
 	vtyshell::initializeVtyshMap();
-	pipe_ret_t startRet = wg_autod.start(51822);
+
+	spdlog::info("Starting the wg_autod(tcp port 51822)...");
+	pipe_ret_t startRet = wgacs.start(51822);
 	if (!startRet.isSuccessful()) {
 		spdlog::error("Server setup failed: {}", startRet.message());
 		return EXIT_FAILURE;
 	}
 
-	while (!wg_autod.shouldTerminate()) {
+	while (!wgacs.shouldTerminate()) {
 		acceptClients();
 	}
 
-	wg_autod.close();
+	wgacs.close();
 	spdlog::info("The wg_autod is stopped.");
 
 	return EXIT_SUCCESS;

@@ -25,3 +25,5 @@ public:
 private:
 	std::map<std::string, std::string> _config_tbl;
 };
+
+extern Config configurations;

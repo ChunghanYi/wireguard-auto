@@ -4,14 +4,17 @@
 
 #define MAX_PACKET_SIZE 4096
 
-namespace fd_wait {
-    enum Result {
-        FAILURE,
-        TIMEOUT,
-        SUCCESS
-    };
+namespace fd_wait
+{
 
-    Result waitFor(const FileDescriptor& fileDescriptor, uint32_t timeoutSeconds = 1);
+enum Result {
+	FAILURE,
+	TIMEOUT,
+	SUCCESS
+};
+
+Result waitFor(const FileDescriptor& fileDescriptor, uint32_t timeoutSeconds = 1);
+
 };
 
 

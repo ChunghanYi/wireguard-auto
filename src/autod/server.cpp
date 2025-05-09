@@ -12,6 +12,7 @@
 #include "inc/server.h"
 #include "inc/message.h"
 #include "inc/peer_tbl.h"
+#include "inc/vip_pool.h"
 #include "inc/configuration.h"
 #include "inc/common.h"
 #include "inc/vtysh.h"
@@ -32,7 +33,7 @@ void WgacServer::printClients() {
 	if (_clients.empty()) {
 		std::cout << "no connected clients\n";
 	}
-	for (const Client *client : _clients) {
+	for (const Client* client : _clients) {
 		client->print();
 	}
 }
@@ -117,7 +118,7 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 	system(szInfo);
 #endif
 
-	spdlog::info("szInfo -----> [{}]", szInfo);
+	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard setup is complete.");
 }
 
@@ -141,12 +142,12 @@ void WgacServer::remove_wireguard(const message_t& rmsg) {
 	system(szInfo);
 #endif
 
-	spdlog::info("szInfo -----> [{}]", szInfo);
+	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard rule is removed.");
 }
 
 /**
- * Handle messages come from each client(= peer)
+ * Handle messages coming from each client(= peer)
  */
 void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 	switch (rmsg.type) {
@@ -157,15 +158,32 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				smsg.type = AUTOCONN::HELLO;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
-				/* TODO: vpn ip allocation routine */
-				if (inet_pton(AF_INET, _autoConf.getstr("that_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
-					spdlog::warn("inet_pton(that_vpn_ip) failed.");
-				}
-				if (inet_pton(AF_INET, _autoConf.getstr("that_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+				if (inet_pton(AF_INET, configurations.getstr("that_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
 					spdlog::warn("inet_pton(that_vpn_netmask) failed.");
+					send_NOK(client);
+				} else {
+					/* vpn ip allocation(for clients) routine */
+					vip_entry_t* vip = viptable.search_address_binding(rmsg);
+					if (vip) {
+						smsg.vpnIP.s_addr = vip->vpnIP;
+						std::string s = inet_ntoa(smsg.vpnNetmask);
+						spdlog::info("--- Preparing vpnIP({}/{}) for client.",
+								inet_ntoa(smsg.vpnIP), s);
+						send_HELLO(client, smsg);
+					} else {
+						vip = viptable.add_address_binding(rmsg);
+						if (vip) {
+							smsg.vpnIP.s_addr = vip->vpnIP;
+							std::string s = inet_ntoa(smsg.vpnNetmask);
+							spdlog::info("--- Preparing vpnIP({}/{}) for client.",
+									inet_ntoa(smsg.vpnIP), s);
+							send_HELLO(client, smsg);
+						} else {
+							spdlog::warn("Can't bind mac address to ip address.");
+							send_NOK(client);
+						}
+					}
 				}
-
-				send_HELLO(client, smsg);
 			} else {
 				send_NOK(client);
 			}
@@ -177,22 +195,26 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg;
 				smsg.type = AUTOCONN::PONG;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+				if (inet_pton(AF_INET, configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_ip) failed.");
+					send_NOK(client);
+				} else {
+					if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+						spdlog::warn("inet_pton(this_vpn_netmask) failed.");
+						send_NOK(client);
+					} else {
+						memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+						if (inet_pton(AF_INET, configurations.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
+							spdlog::warn("inet_pton(this_endpoint_ip) failed.");
+							send_NOK(client);
+						} else {
+							smsg.epPort = configurations.getint("this_endpoint_port");
+							memcpy(smsg.allowed_ips, configurations.getstr("this_allowed_ips").c_str(), 256);
+							send_PONG(client, smsg);
+							setup_wireguard(rmsg);
+						}
+					}
 				}
-				if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
-					spdlog::warn("inet_pton(this_vpn_netmask) failed.");
-				}
-				memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-				if (inet_pton(AF_INET, _autoConf.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
-					spdlog::warn("inet_pton(this_endpoint_ip) failed.");
-				}
-				smsg.epPort = _autoConf.getint("this_endpoint_port");
-				memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
-
-				send_PONG(client, smsg);
-
-				setup_wireguard(rmsg);
 			} else {
 				send_NOK(client);
 			}
@@ -205,6 +227,11 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				smsg.type = AUTOCONN::BYE;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 				send_BYE(client, smsg);
+#if 1 /* TBD */
+				if (viptable.remove_address_binding(rmsg)) {
+					spdlog::info(">>> Binding address is removed.");
+				}
+#endif
 				remove_wireguard(rmsg);
 			} else {
 				send_NOK(client);
@@ -330,7 +357,7 @@ pipe_ret_t WgacServer::waitForClient(uint32_t timeout) {
 pipe_ret_t WgacServer::sendToAllClients(const char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
-	for (const Client *client : _clients) {
+	for (const Client* client : _clients) {
 		pipe_ret_t sendingResult = sendToClient(*client, msg, size);
 		if (!sendingResult.isSuccessful()) {
 			return sendingResult;
@@ -433,7 +460,7 @@ pipe_ret_t WgacServer::close() {
 	{ // close clients
 		std::lock_guard<std::mutex> lock(_clientsMtx);
 
-		for (Client *client : _clients) {
+		for (Client* client : _clients) {
 			try {
 				client->close();
 			} catch (const std::runtime_error& error) {

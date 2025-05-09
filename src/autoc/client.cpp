@@ -25,7 +25,7 @@ pipe_ret_t WgacClient::connectTo(const std::string& address, int port) {
 		return pipe_ret_t::failure(error.what());
 	}
 
-	const int connectResult = connect(_sockfd.get(), (struct sockaddr *)&_server, sizeof(_server));
+	const int connectResult = connect(_sockfd.get(), (struct sockaddr*)&_server, sizeof(_server));
 	const bool connectionFailed = (connectResult == -1);
 	if (connectionFailed) {
 		return pipe_ret_t::failure(strerror(errno));
@@ -57,12 +57,12 @@ void WgacClient::setAddress(const std::string& address, int port) {
 
 	if (!inetSuccess) { // inet_addr failed to parse address
                         // if hostname is not in IP strings and dots format, try resolve it
-		struct hostent *host;
-		struct in_addr **addrList;
+		struct hostent* host;
+		struct in_addr** addrList;
 		if ((host = gethostbyname(address.c_str())) == nullptr) {
 			throw std::runtime_error("Failed to resolve hostname");
 		}
-		addrList = (struct in_addr **) host->h_addr_list;
+		addrList = (struct in_addr**) host->h_addr_list;
 		_server.sin_addr = *addrList[0];
 	}
 	_server.sin_family = AF_INET;

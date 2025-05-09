@@ -53,12 +53,12 @@ std::vector<std::string> split(std::string s, std::string delimiter) {
 }
 
 bool getIPNetmask(std::string netinfo, char* ipstr, char* netmaskstr) {
-	char *mask;
+	char* mask;
 	int maskbits;
 	struct in_addr addr;
 	struct in_addr netmask;
 
-	if (!(mask = strchr((char *)netinfo.c_str(),'/'))) {
+	if (!(mask = strchr((char*)netinfo.c_str(),'/'))) {
 		return false;
 	}
 

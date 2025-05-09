@@ -20,38 +20,6 @@
  *	...
  *	keyN = valueN
  */
-#if 0 /* OLD_STYLE */
-bool Config::parse(const std::string& path) {
-	std::ifstream openFile(path);
-	std::string line;
-
-	if (!openFile.is_open()) {
-		spdlog::error("Can't open config file");
-		return false;
-	}
-
-	while (getline(openFile, line)) {
-		std::string delimiter = " = ";
-		if (std::string::npos == line.find(delimiter)) {
-			delimiter = "=";
-		}
-		std::string key = line.substr(0, line.find(delimiter));
-		if (key[0] == '#' || key[0] == ' ' || key[0] == '\0' ||
-				key[0] == '\t' || key[0] == '\r' || key[0] == '\n') {
-			continue;
-		}
-		spdlog::debug("### key ==> {}", key);
-		std::string value = line.substr(
-				line.find(delimiter) + delimiter.length(), line.length()
-				);
-		spdlog::debug("### value ==> {}", value);
-		_config_tbl[key] = value;
-	}
-	openFile.close();
-
-	return true;
-}
-#else /* BOOST STYLE */
 bool Config::parse(const std::string& path) {
 	std::ifstream config_file(path);
 	std::string line;
@@ -76,8 +44,10 @@ bool Config::parse(const std::string& path) {
 			boost::algorithm::trim(parsed_config[0]);
 			boost::algorithm::trim(parsed_config[1]);
 
+#ifdef DEBUG
 			spdlog::debug("### key   ==> {}", parsed_config[0]);
 			spdlog::debug("### value ==> {}", parsed_config[1]);
+#endif
 
 			_config_tbl[parsed_config[0]] = parsed_config[1];
 		} else if (parsed_config.size() == 3) {
@@ -86,8 +56,10 @@ bool Config::parse(const std::string& path) {
 			boost::algorithm::trim(parsed_config[2]);
 			std::string value = parsed_config[1] + "=" + parsed_config[2];
 
+#ifdef DEBUG
 			spdlog::debug("### key   ==> {}", parsed_config[0]);
 			spdlog::debug("### value ==> {}", value);
+#endif
 
 			_config_tbl[parsed_config[0]] = value;
 		} else {
@@ -98,7 +70,6 @@ bool Config::parse(const std::string& path) {
 
 	return true;
 }
-#endif
 
 /**
  * Check whether the value for the key is existent or not.
@@ -156,8 +127,10 @@ std::string Config::getstr(const std::string& key) {
 		if (_config_tbl[key].find("\"") == std::string::npos) {
 			return _config_tbl[key];
 		} else {
+#ifdef DEBUG
 			spdlog::debug("### ({}) value ==> {}",
 					__func__, _config_tbl[key].substr(1, _config_tbl[key].length() - 2));
+#endif
 			return _config_tbl[key].substr(1, _config_tbl[key].length() - 2);
 		}
 	} else {

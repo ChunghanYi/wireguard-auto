@@ -28,9 +28,9 @@ void get_local_mac_address(char* macaddr) {
 	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (fd >= 0) {
 #ifdef VTYSH
-		sprintf((char *)s.ifr_name, "%s", "eth0");
+		sprintf((char*)s.ifr_name, "%s", "eth0");
 #else
-		sprintf((char *)s.ifr_name, "%s", "enp4s0");
+		sprintf((char*)s.ifr_name, "%s", "enp4s0");
 #endif
 		if (0 == ioctl(fd, SIOCGIFHWADDR, &s)) {
 			for (i = 0; i < 6; i++)
@@ -46,7 +46,7 @@ void get_local_mac_address(char* macaddr) {
 static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, uint32_t mask) {
 	memset(smsg, 0, sizeof(message_t));
 	smsg->type = type;
-	get_local_mac_address(reinterpret_cast<char *>(smsg->mac_addr));
+	get_local_mac_address(reinterpret_cast<char*>(smsg->mac_addr));
 	smsg->vpnIP.s_addr = ip;
 	smsg->vpnNetmask.s_addr = mask;
 }
@@ -58,7 +58,7 @@ bool WgacClient::send_hello_message() {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char *>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;
@@ -75,13 +75,15 @@ bool WgacClient::send_hello_message() {
 			spdlog::info("<<< HELLO message received.");
 			/* save the vpnIP and vpnNetmask come from server */
 			char s[16];
-			sprintf(s, "%s", inet_ntoa(rmsg.vpnIP));
+			snprintf(s, sizeof(s), "%s", inet_ntoa(rmsg.vpnIP));
 			std::string value1(s);
 			_autoConf.setstr("this_vpn_ip", value1);
 
 			sprintf(s, "%s", inet_ntoa(rmsg.vpnNetmask));
 			std::string value2(s);
 			_autoConf.setstr("this_vpn_netmask", value2);
+
+			spdlog::info("--- vpnIP({}/{}) received from server.", value1, value2);
 			return true;
 		} else {
 			spdlog::info("<<< Oops, HELLO message NOT received.");
@@ -120,7 +122,7 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 	smsg.epPort = _autoConf.getint("this_endpoint_port");
 	memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
 
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char *>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;
@@ -162,7 +164,7 @@ bool WgacClient::send_bye_message() {
 	}
 	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char *>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;
@@ -240,7 +242,7 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	system(szInfo);
 #endif
 
-	spdlog::info("szInfo -----> [{}]", szInfo);
+	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard setup is complete.");
 }
 
@@ -264,14 +266,14 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
 	system(szInfo);
 #endif
 
-	spdlog::info("szInfo -----> [{}]", szInfo);
+	spdlog::info("--- wireugard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard rule is removed.");
 }
 
 /**
- * Register this to the server.
+ * Start PING-PONG negotiations
  */
-void WgacClient::start_wgauto_protocol() {
+void WgacClient::start() {
 	message_t rmsg;
 
 	while (1) {
