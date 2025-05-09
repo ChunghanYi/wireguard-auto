@@ -158,8 +158,8 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				smsg.type = AUTOCONN::HELLO;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
-				if (inet_pton(AF_INET, configurations.getstr("that_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
-					spdlog::warn("inet_pton(that_vpn_netmask) failed.");
+				if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+					spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 					send_NOK(client);
 				} else {
 					/* vpn ip allocation(for clients) routine */
