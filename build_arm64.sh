@@ -41,16 +41,15 @@ build_it()
 
 		if [ ! -d ./external/boost_1_88_0 ]; then
 			cd external
-			if [ -r boost_1_88_0.tgz ]; then
-				tar xvzf boost_1_88_0.tgz > /dev/null 2>&1
-				cd boost_1_88_0
-				cp ../misc/user-config.jam . > /dev/null 2>&1
-				./bootstrap.sh
-				./b2 toolset=gcc-arm64 target-os=linux --user-config=user-config.jam --without-context --without-coroutine --without-python -threading=multi
-			else
-				echo "Oops boost_1_88_0.tgz file not found !"
-				exit
+			if [ ! -r boost_1_88_0.tar.gz ]; then
+				wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
 			fi
+			tar xvzf boost_1_88_0.tar.gz > /dev/null 2>&1
+			cd boost_1_88_0
+			cp ../misc/user-config.jam . > /dev/null 2>&1
+			./bootstrap.sh
+			./b2 toolset=gcc-arm64 target-os=linux --user-config=user-config.jam --without-context --without-coroutine --without-python -threading=multi
+
 			cd $WGAC_PATH
 		fi
 

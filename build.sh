@@ -26,13 +26,14 @@ build_it()
 
 		if [ ! -d ./external/boost_1_88_0 ]; then
 			cd external
-			if [ -r boost_1_88_0.tgz ]; then
-				tar xvzf boost_1_88_0.tgz > /dev/null 2>&1
-				cd boost_1_88_0
-				./bootstrap.sh
-				./b2
-				./b2 headers
+			if [ ! -r boost_1_88_0.tar.gz ]; then
+				wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
 			fi
+			tar xvzf boost_1_88_0.tar.gz > /dev/null 2>&1
+			cd boost_1_88_0
+			./bootstrap.sh
+			./b2
+			./b2 headers
 			cd $CPPPATH
 		fi
 
