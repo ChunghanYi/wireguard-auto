@@ -33,4 +33,6 @@
 
 # Temporary directories
 build/
-external/
+external/boost_1_88_0
+external/lib
+external/spdlog
