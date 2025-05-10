@@ -17,6 +17,8 @@
 #include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
+//#define DEBUG
+
 uint32_t VipTable::byteArrayToIpAddress(const uint8_t ipBytes0, const uint8_t ipBytes1,
 		const uint8_t ipBytes2, const uint8_t ipBytes3) {
 	uint32_t ipAddress = 0;
@@ -55,14 +57,11 @@ std::vector<uint8_t> VipTable::parse_ipv4_address(const std::string& ip_address)
 }
 
 /**
- * Initiailze vip pool table(vector table)
+ * Initialize vip-pool-table(vector table)
  */
 bool VipTable::init_vip_table() {
 	vip_entry_t v {};
 	std::string ip_address = configurations.getstr("vpnip_range_begin");
-#ifdef DEBUG
-	spdlog::debug("### begin/ip_address => {}", ip_address);
-#endif
 	if (inet_pton(AF_INET, ip_address.c_str(), &(v.vpnIP)) <= 0) {
 		return false;
 	}
@@ -75,9 +74,6 @@ bool VipTable::init_vip_table() {
 	vip_pool_index.first -= 1;  /* not 10.1.0.0 but 10.1.0.1 */
 
 	ip_address = configurations.getstr("vpnip_range_end");
-#ifdef DEBUG
-	spdlog::debug("### end/ip_address => {}", ip_address);
-#endif
 	if (inet_pton(AF_INET, ip_address.c_str(), &(v.vpnIP)) <= 0) {
 		return false;
 	}
@@ -99,20 +95,17 @@ bool VipTable::init_vip_table() {
 		v.index = i;
 		vip_pool_table.push_back(v);
 #ifdef DEBUG
-		struct in_addr xxxIP;
-		xxxIP.s_addr = v.vpnIP;
-		spdlog::debug("### i:{}, vpnIP:{} pushed into vip pool table", i, inet_ntoa(xxxIP));
+		struct in_addr xIP;
+		xIP.s_addr = v.vpnIP;
+		spdlog::info("### i:{}, IP:{} pushed into vip pool table", i, inet_ntoa(xIP));
 #endif
 	}
 	vip_pool_index.current = vip_pool_index.first;
-#ifdef DEBUG
-	spdlog::debug("### vip_pool_index.current --> {}", vip_pool_index.current);
-#endif
 	return true;
 }
 
 /**
- * Get an entry from vip used table(map table)
+ * Get an entry from vip-used-table(map table)
  */
 struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
@@ -125,16 +118,13 @@ struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
 		return temp;
 	};
 	std::string macstr = get_mac_addr();
-#ifdef DEBUG
-	spdlog::debug("###({}) macstr => {}", __func__, macstr);
-#endif
 
 	auto it = vip_used_table.find(macstr);
 	if (it != vip_used_table.end()) {
 #ifdef DEBUG
-		struct in_addr xxxIP;
-		xxxIP.s_addr = it->second->vpnIP;
-		spdlog::debug("### OK, {} found.", inet_ntoa(xxxIP));
+		struct in_addr xIP;
+		xIP.s_addr = it->second->vpnIP;
+		spdlog::info("### OK, ip address({}) found for mac address({}).", inet_ntoa(xIP), macstr);
 #endif
 		return it->second;
 	} else {
@@ -143,9 +133,10 @@ struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
 }
 
 /**
- * Add an entry to vip used table(map table) and update vip pool table(vector table)
+ * Add an entry to vip-used-table(map table) and update vip-pool-table(vector table)
  */
 vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
+	bool ok_flag {false};
 	auto get_mac_addr = [rmsg] () -> std::string {
 		char s[18];
 		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -157,32 +148,47 @@ vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
 	};
 	std::string macstr = get_mac_addr();
 
-	if (vip_pool_index.current <= vip_pool_index.last) {
-		vip_entry_t* tip = new vip_entry_t;
-		if (tip) {
+	vip_entry_t* tip = new vip_entry_t;
+	if (!tip) {
+		return nullptr;
+	}
+	while (1) {
+		if (vip_pool_index.current > vip_pool_index.last) {
+			delete tip;
+			vip_pool_index.current = 0;
+			ok_flag = false;
+			spdlog::warn("Oops, vip_pool_index.current > vip_pool_index.last !!!");
+			break;
+		} else if (vip_pool_table[vip_pool_index.current].used == false) {
 			vip_pool_table[vip_pool_index.current].used = true;
 			tip->vpnIP = vip_pool_table[vip_pool_index.current].vpnIP;
 			tip->used = vip_pool_table[vip_pool_index.current].used;
 			tip->index = vip_pool_table[vip_pool_index.current].index;
 			vip_used_table.insert(std::make_pair(macstr, tip));
 			vip_pool_index.current++;
-#ifdef DEBUG
-			struct in_addr xxxIP;
-			xxxIP.s_addr = tip->vpnIP;
-			spdlog::debug("###({}) OK, added({}).", __func__, vip_pool_index.current);
-			spdlog::debug("###({}) tip->vpnIP => {}", __func__, inet_ntoa(xxxIP));
-			spdlog::debug("###({}) tip->used => {}", __func__, tip->used);
-			spdlog::debug("###({}) tip->index => {}", __func__, tip->index);
-#endif
-			return tip;
+			ok_flag = true;
+			break;
+		} else {
+			vip_pool_index.current++;
 		}
 	}
-
-	return nullptr;
+	
+	if (ok_flag) {
+#ifdef DEBUG
+		struct in_addr xIP;
+		xIP.s_addr = tip->vpnIP;
+		spdlog::info("### OK, ip address({}) added for mac address({}).", inet_ntoa(xIP), macstr);
+		spdlog::debug("### tip->vpnIP => {}, tip->used => {}, tip->index => {}",
+				vip_pool_index.current, inet_ntoa(xIP), tip->used, tip->index);
+#endif
+		return tip;
+	} else {
+		return nullptr;
+	}
 }
 
 /**
- * Remove an entry from vip used table(map table) and update vip pool table(vector table)
+ * Remove an entry from vip-used-table(map table) and update vip pool table(vector table)
  */
 bool VipTable::remove_address_binding(const message_t& rmsg) {
 	auto get_mac_addr = [rmsg] () -> std::string {
@@ -201,15 +207,14 @@ bool VipTable::remove_address_binding(const message_t& rmsg) {
 		if (it->second) {
 			if (it->second->index <= vip_pool_index.last)
 				vip_pool_table[it->second->index].used = false;
-			delete it->second;
 #ifdef DEBUG
-			spdlog::debug("###({}) OK, removed(step#1).", __func__);
+			struct in_addr xIP;
+			xIP.s_addr = it->second->vpnIP;
+			spdlog::info("### OK, ip address({}) removed for mac address({}).", inet_ntoa(xIP), macstr);
 #endif
+			delete it->second;
 		}
 		vip_used_table.erase(macstr);
-#ifdef DEBUG
-		spdlog::debug("###({}) OK, removed(step#2).", __func__);
-#endif
 		return true;
 	} else {
 		return false;

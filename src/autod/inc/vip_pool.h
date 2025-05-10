@@ -18,9 +18,9 @@ struct _vip_entry {
 using vip_entry_t = struct _vip_entry;
 
 struct pool_indexes {
-	uint32_t first;    // first address of the pool
-	uint32_t last;     // last address of the pool
-	uint32_t current;  // current available address
+	uint32_t first;    // first address of the pool(vector table)
+	uint32_t last;     // last address of the pool(vector table)
+	uint32_t current;  // current available address(vector table)
 };
 
 class VipTable {
