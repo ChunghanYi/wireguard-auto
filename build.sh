@@ -37,6 +37,20 @@ build_it()
 			cd $CPPPATH
 		fi
 
+		if [ ! -d ./external/libsodium-stable ]; then
+			cd external
+			if [ ! -r libsodium-1.0.20-stable.tar.gz ]; then
+				wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable.tar.gz
+			fi
+			tar xvzf libsodium-1.0.20-stable.tar.gz > /dev/null 2>&1
+			cd libsodium-stable
+			mkdir -p output
+			./configure --prefix=$(pwd)/output
+			make
+			make install
+			cd $CPPPATH
+		fi
+
 		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
 			mkdir -p build
@@ -48,6 +62,7 @@ build_it()
 		rm -rf ./external/lib > /dev/null 2>&1
 		rm -rf ./external/spdlog > /dev/null 2>&1
 		rm -rf ./external/boost_1_88_0 > /dev/null 2>&1
+		rm -rf ./external/libsodium-stable > /dev/null 2>&1
 	fi
 }
 

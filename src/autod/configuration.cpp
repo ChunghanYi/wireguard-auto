@@ -48,7 +48,6 @@ bool Config::parse(const std::string& path) {
 			spdlog::debug("### key   ==> {}", parsed_config[0]);
 			spdlog::debug("### value ==> {}", parsed_config[1]);
 #endif
-
 			_config_tbl[parsed_config[0]] = parsed_config[1];
 		} else if (parsed_config.size() == 3) {
 			boost::algorithm::trim(parsed_config[0]);
@@ -60,7 +59,6 @@ bool Config::parse(const std::string& path) {
 			spdlog::debug("### key   ==> {}", parsed_config[0]);
 			spdlog::debug("### value ==> {}", value);
 #endif
-
 			_config_tbl[parsed_config[0]] = value;
 		} else {
 			spdlog::error("Can't parse config line: {}", line);

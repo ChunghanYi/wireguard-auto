@@ -12,13 +12,14 @@
 #include "inc/common.h"
 #include "inc/vtysh.h"
 #include "inc/configuration.h"
+#include "inc/sodium_aead.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
 
 WgacServer wgacs;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.2.02" }; 
+const std::string versionString { "v0.3.00" }; 
 
 static void sig_handler(int sig) {
 	switch (sig) {
@@ -165,6 +166,7 @@ int main(int argc, char* argv[]) {
 
 	viptable.init_vip_table();
 	vtyshell::initializeVtyshMap();
+	sodium_aead::initialize_sodium();
 
 	spdlog::info("Starting the wg_autod(tcp port 51822)...");
 	pipe_ret_t startRet = wgacs.start(51822);

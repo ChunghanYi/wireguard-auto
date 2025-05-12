@@ -30,7 +30,7 @@ public:
 	void publishEvent(ClientEvent clientEvent, const message_t& msg);
 	bool isConnected() const { return _isConnected; }
 	void startListen();
-	void send(const char* msg, size_t msgSize) const;
+	void send(unsigned char* msg, size_t msgSize) const;
 	void close();
 	void print() const;
 

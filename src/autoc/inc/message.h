@@ -34,4 +34,5 @@ struct message {
 	uint8_t allowed_ips[256];                // 256 bytes : my allowed ips(networks)
 }  __attribute__ ((packed));
 
+#define ENC_MESSAGE_SIZE (sizeof(struct message) + 40)
 using message_t = struct message;

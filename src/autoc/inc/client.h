@@ -34,7 +34,7 @@ public:
 	WgacClient();
 	~WgacClient();
 	pipe_ret_t connectTo(const std::string& address, int port);
-	pipe_ret_t sendMsg(const char* msg, size_t size);
+	pipe_ret_t sendMsg(unsigned char* msg, size_t size);
 
 	void start();
 	bool handle_message_queue(message_t* pmsg);

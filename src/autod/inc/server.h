@@ -40,8 +40,8 @@ public:
 	void bindAddress(int port);
 	void listenToClients(int maxNumOfClients);
 	std::string acceptClient(uint timeout);
-	pipe_ret_t sendToAllClients(const char* msg, size_t size);
-	pipe_ret_t sendToClient(const std::string& clientIP, const char* msg, size_t size);
+	pipe_ret_t sendToAllClients(unsigned char* msg, size_t size);
+	pipe_ret_t sendToClient(const std::string& clientIP, unsigned char* msg, size_t size);
 
 	bool sendMessage(const Client& client, const message_t& smsg);
 	bool send_HELLO(const Client& client, const message_t& smsg);
@@ -84,5 +84,5 @@ private:
 	void clientEventHandler(const Client&, ClientEvent, const message_t& msg);
 	void removeDeadClients();
 	void terminateDeadClientsRemover();
-	static pipe_ret_t sendToClient(const Client& client, const char* msg, size_t size);
+	static pipe_ret_t sendToClient(const Client& client, unsigned char* msg, size_t size);
 };

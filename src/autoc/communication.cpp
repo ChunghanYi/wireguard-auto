@@ -58,7 +58,7 @@ bool WgacClient::send_hello_message() {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;
@@ -122,7 +122,7 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 	smsg.epPort = _autoConf.getint("this_endpoint_port");
 	memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
 
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;
@@ -164,7 +164,7 @@ bool WgacClient::send_bye_message() {
 	}
 	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<const char*>(&smsg), sizeof(message_t));
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");
 		return false;

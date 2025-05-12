@@ -226,6 +226,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg;
 				smsg.type = AUTOCONN::BYE;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+				memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 				send_BYE(client, smsg);
 #if 1 /* TBD */
 				if (viptable.remove_address_binding(rmsg)) {
@@ -354,7 +355,7 @@ pipe_ret_t WgacServer::waitForClient(uint32_t timeout) {
  * Send message to all connected clients.
  * Return true if message was sent successfully to all clients
  */
-pipe_ret_t WgacServer::sendToAllClients(const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToAllClients(unsigned char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
 	for (const Client* client : _clients) {
@@ -371,7 +372,7 @@ pipe_ret_t WgacServer::sendToAllClients(const char* msg, size_t size) {
  * Send message to specific client (determined by client IP address).
  * Return true if message was sent successfully
  */
-pipe_ret_t WgacServer::sendToClient(const Client& client, const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToClient(const Client& client, unsigned char* msg, size_t size) {
 	try {
 		client.send(msg, size);
 	} catch (const std::runtime_error &error) {
@@ -381,7 +382,7 @@ pipe_ret_t WgacServer::sendToClient(const Client& client, const char* msg, size_
 	return pipe_ret_t::success();
 }
 
-pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, const char* msg, size_t size) {
+pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
 	const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
@@ -403,7 +404,7 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 	memcpy(&smsg, &msg, sizeof(message_t));
 
 	try {
-		client.send(reinterpret_cast<char *>(&smsg), sizeof(smsg));
+		client.send(reinterpret_cast<unsigned char *>(&smsg), sizeof(smsg));
 	} catch (const std::runtime_error &error) {
 		spdlog::info("<<< Oops message sending is failed.");
 		return false;

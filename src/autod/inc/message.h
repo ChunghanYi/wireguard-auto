@@ -22,7 +22,7 @@ enum class AUTOCONN {
 #define WG_KEY_LEN 32
 #define WG_KEY_LEN_BASE64 ((((WG_KEY_LEN) + 2) / 3) * 4 + 1)
 
-struct message {
+struct message {                             // 325 bytes
 	enum AUTOCONN type;                      // 4 byte : message type
 	uint8_t mac_addr[6];                     // 6 bytes : MAC address
 	struct in_addr vpnIP;                    // 4 bytes : vpn IP address (IPv4)
@@ -33,4 +33,5 @@ struct message {
 	uint8_t allowed_ips[256];                // 256 bytes : my allowed ips(networks)
 }  __attribute__ ((packed));
 
+#define ENC_MESSAGE_SIZE (sizeof(struct message) + 40)
 using message_t = struct message;

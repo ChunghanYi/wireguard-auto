@@ -5,8 +5,17 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <cstring>	//for std::memcpy
 #include "inc/client.h"
+#include "inc/message.h"
 #include "inc/common.h"
+#include "inc/sodium_aead.h"
+
+namespace sodium_aead
+{
+	extern std::vector<unsigned char> client_secret_key;
+	extern std::vector<unsigned char> server_public_key;
+}
 
 WgacClient::WgacClient() {
 	_isConnected = false;
@@ -69,6 +78,7 @@ void WgacClient::setAddress(const std::string& address, int port) {
 	_server.sin_port = htons(port);
 }
 
+#ifdef NO_AEAD_METHOD
 pipe_ret_t WgacClient::sendMsg(const char* msg, size_t size) {
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
@@ -114,6 +124,63 @@ void WgacClient::receiveTask() {
 		}
 	}
 }
+#else /* AEAD method */
+pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
+	std::vector<unsigned char> original_message(msg, msg + size);
+	std::vector<unsigned char> encrypted_message = sodium_aead::encrypt_message(original_message,
+			sodium_aead::server_public_key, sodium_aead::client_secret_key);
+
+	const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+
+	if (numBytesSent < 0) { // send failed
+		return pipe_ret_t::failure(strerror(errno));
+	}
+	if (numBytesSent < encrypted_message.size()) { // not all bytes were sent
+		char errorMsg[100];
+		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
+		return pipe_ret_t::failure(errorMsg);
+	}
+	return pipe_ret_t::success();
+}
+
+/*
+ * Receive server packets, and notify user
+ */
+void WgacClient::receiveTask() {
+	while(_isConnected) {
+		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
+
+		if (waitResult == fd_wait::Result::FAILURE) {
+			throw std::runtime_error(strerror(errno));
+		} else if (waitResult == fd_wait::Result::TIMEOUT) {
+			continue;
+		}
+
+		message_t rmsg;
+		unsigned char rxbuffer[ENC_MESSAGE_SIZE];
+		const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
+
+		if (numOfBytesReceived < 1) {
+			std::string errorMsg;
+			if (numOfBytesReceived == 0) { //server closed connection
+				errorMsg = "Server closed connection";
+			} else {
+				errorMsg = strerror(errno);
+			}
+			_isConnected = false;
+			return;
+		} else {
+			std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
+			std::vector<unsigned char> decrypted_message = sodium_aead::decrypt_message(
+					encrypted_message, sodium_aead::server_public_key, sodium_aead::client_secret_key);
+			memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+
+			/* Let's put this message to <message queue>. */
+			_msgQueue.push(rmsg);
+		}
+	}
+}
+#endif
 
 void WgacClient::terminateReceiveThread() {
 	_isConnected = false;

@@ -9,11 +9,12 @@
 #include <signal.h>
 #include "inc/client.h"
 #include "inc/configuration.h"
+#include "inc/sodium_aead.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
 
 WgacClient wgacc;
-const std::string versionString { "v0.2.02" };
+const std::string versionString { "v0.3.00" };
 std::string server_ip;
 
 void sig_exit(int s) {
@@ -155,6 +156,8 @@ int main(int argc, char* argv[]) {
 	::signal(SIGINT, sig_exit);
 	::signal(SIGQUIT, sig_exit);
 	::signal(SIGTERM, sig_exit);
+
+	sodium_aead::initialize_sodium();
 
 	// connect client to an open server
 	bool connected = false;

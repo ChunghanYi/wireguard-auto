@@ -53,6 +53,20 @@ build_it()
 			cd $WGAC_PATH
 		fi
 
+		if [ ! -d ./external/libsodium-stable ]; then
+			cd external
+			if [ ! -r libsodium-1.0.20-stable.tar.gz ]; then
+				wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable.tar.gz
+			fi
+			tar xvzf libsodium-1.0.20-stable.tar.gz > /dev/null 2>&1
+			cd libsodium-stable
+			mkdir -p output
+			./configure --host=aarch64-openwrt-linux-musl --prefix=$(pwd)/output
+			make clean; make
+			make install
+			cd $WGAC_PATH
+        fi
+
 		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
 			mkdir -p build
@@ -65,6 +79,7 @@ build_it()
 		rm -rf ./external/lib > /dev/null 2>&1
 		rm -rf ./external/spdlog > /dev/null 2>&1
 		rm -rf ./external/boost_1_88_0 > /dev/null 2>&1
+		rm -rf ./external/libsodium-stable > /dev/null 2>&1
 	fi
 }
 
