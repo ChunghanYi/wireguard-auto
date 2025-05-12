@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.2.00). 😎
+It's currently in development(v0.3.00). 😎
 
 ```
 
@@ -40,6 +40,7 @@ Allowed options:
 $ sudo ./wg_autod --foreground --config ../config/server.conf
 [2025-01-22 13:08:33.373] [info] Starting the wg_autod(tcp port 51822)...
 [2025-01-22 13:08:40.755] [info] >>> HELLO message received.
+[2025-01-22 13:08:40.755] [info] --- Preparing vpnIP(10.1.0.2/255.255.255.0) for client.
 [2025-01-22 13:08:40.755] [info] <<< HELLO message sent to client.
 [2025-01-22 13:08:41.256] [info] >>> PING message received.
 [2025-01-22 13:08:41.256] [info] <<< PONG message sent to client.
@@ -61,6 +62,7 @@ $ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 [2025-01-22 13:09:06.870] [info] Client connected successfully
 [2025-01-22 13:09:06.870] [info] >>> HELLO message sent to server.
 [2025-01-22 13:09:07.370] [info] <<< HELLO message received.
+[2025-01-22 13:09:07.371] [info] --- vpnIP(10.1.0.3/255.255.255.0) received from server.
 [2025-01-22 13:09:07.371] [info] >>> PING message sent to server.
 [2025-01-22 13:09:07.871] [info] <<< PONG message received.
 [2025-01-22 13:09:07.874] [info] szInfo -----> [wg set wg0 peer iv9OsqcIhtNACmxkxa41B7PltVIclvswY/kPCNRa4iQ= allowed-ips 172.16.1.254/32 endpoint 192.168.8.182:51820 persistent-keepalive 25 &]
