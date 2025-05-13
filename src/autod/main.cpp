@@ -20,6 +20,8 @@ WgacServer wgacs;
 Config configurations;
 VipTable viptable;
 const std::string versionString { "v0.3.00" }; 
+unsigned short wgac_port = 51822;
+
 
 static void sig_handler(int sig) {
 	switch (sig) {
@@ -168,8 +170,8 @@ int main(int argc, char* argv[]) {
 	vtyshell::initializeVtyshMap();
 	sodium_aead::initialize_sodium();
 
-	spdlog::info("Starting the wg_autod(tcp port 51822)...");
-	pipe_ret_t startRet = wgacs.start(51822);
+	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);
+	pipe_ret_t startRet = wgacs.start(wgac_port);
 	if (!startRet.isSuccessful()) {
 		spdlog::error("Server setup failed: {}", startRet.message());
 		return EXIT_FAILURE;

@@ -16,6 +16,7 @@
 WgacClient wgacc;
 const std::string versionString { "v0.3.00" };
 std::string server_ip;
+unsigned short wgac_port = 51822;
 
 void sig_exit(int s) {
 	wgacc.send_bye_message();
@@ -162,7 +163,7 @@ int main(int argc, char* argv[]) {
 	// connect client to an open server
 	bool connected = false;
 	while (!connected) {
-		pipe_ret_t connectRet = wgacc.connectTo(server_ip, 51822);
+		pipe_ret_t connectRet = wgacc.connectTo(server_ip, wgac_port);
 		connected = connectRet.isSuccessful();
 		if (connected) {
 			spdlog::info("Client connected successfully");

@@ -29,6 +29,24 @@ $ ls -l
 ## How to run on Ubuntu 22.04 LTS
 ```
 <server side>
+-------------
+$ vi ../config/server.conf
+  -> Edit this file.
+debug_mode = 1
+
+#this part ----------------------------------------------------------
+this_vpn_ip = 10.1.1.254
+this_vpn_netmask = 255.255.255.0
+this_public_key = "iv9OsqcIhtNACmxkxa41B7PltVIclvswY/kPCNRa4iQ="
+this_endpoint_ip = 192.168.8.182
+this_endpoint_port = 51820
+this_allowed_ips = "10.1.1.0/24,192.168.0.0/16"
+
+#that part ----------------------------------------------------------
+vpnip_range_begin = 10.1.0.1
+vpnip_range_end = 10.1.0.253
+~
+
 $ sudo ./wg_autod --help
 Allowed options:
   --help                Print help message
@@ -49,6 +67,20 @@ $ sudo ./wg_autod --foreground --config ../config/server.conf
 ...
 
 <client side>
+--------------
+$ vi ../config/client.conf
+  -> Edit this file.
+debug_mode = 1
+
+#this part ----------------------------------------------------------
+this_vpn_ip = 10.1.1.100	#Actually, this value will be given by server automatically.
+this_vpn_netmask = 255.255.255.0
+this_public_key = "6L9YraonVAB90h+dxhKEumHUQh5wjqSmemOs1PGvgwE="
+this_endpoint_ip = 192.168.8.205
+this_endpoint_port = 51820
+this_allowed_ips = "10.1.1.0/24,192.168.0.0/16"
+~
+
 $ sudo ./wg_autoc --help
 Allowed options:
   --help                Print help message

@@ -253,7 +253,7 @@ void WgacServer::handleClientDisconnected(const std::string& clientIP, const mes
  * Bind port and start listening
  * Return tcp_ret_t
  */
-pipe_ret_t WgacServer::start(int port, int maxNumOfClients, bool removeDeadClientsAutomatically) {
+pipe_ret_t WgacServer::start(unsigned short port, int maxNumOfClients, bool removeDeadClientsAutomatically) {
 	if (removeDeadClientsAutomatically) {
 		_clientsRemoverThread = new std::thread(&WgacServer::removeDeadClients, this);
 	}

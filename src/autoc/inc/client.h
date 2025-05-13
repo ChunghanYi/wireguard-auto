@@ -33,7 +33,7 @@ class WgacClient {
 public:
 	WgacClient();
 	~WgacClient();
-	pipe_ret_t connectTo(const std::string& address, int port);
+	pipe_ret_t connectTo(const std::string& address, unsigned short port);
 	pipe_ret_t sendMsg(unsigned char* msg, size_t size);
 
 	void start();
@@ -63,7 +63,7 @@ private:
 
 	void initializeSocket();
 	void startReceivingMessages();
-	void setAddress(const std::string& address, int port);
+	void setAddress(const std::string& address, unsigned short port);
 	void receiveTask();
 	void terminateReceiveThread();
 };

@@ -26,7 +26,7 @@ WgacClient::~WgacClient() {
 	close();
 }
 
-pipe_ret_t WgacClient::connectTo(const std::string& address, int port) {
+pipe_ret_t WgacClient::connectTo(const std::string& address, unsigned short port) {
 	try {
 		initializeSocket();
 		setAddress(address, port);
@@ -61,7 +61,7 @@ void WgacClient::initializeSocket() {
 	}
 }
 
-void WgacClient::setAddress(const std::string& address, int port) {
+void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	const int inetSuccess = inet_aton(address.c_str(), &_server.sin_addr);
 
 	if (!inetSuccess) { // inet_addr failed to parse address
