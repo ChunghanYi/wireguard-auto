@@ -8,6 +8,11 @@ project(wgac)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++17")
 
+add_library(wg STATIC IMPORTED)
+set_target_properties(wg
+	PROPERTIES IMPORTED_LOCATION
+	${CMAKE_SOURCE_DIR}/lib/wg-tools/libwg.a)
+
 add_library(spdlog STATIC IMPORTED)
 set_target_properties(spdlog
 	PROPERTIES IMPORTED_LOCATION
@@ -25,7 +30,7 @@ set_target_properties(sodium
 	PROPERTIES IMPORTED_LOCATION
 	${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/lib/libsodium.a)
 include_directories(${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include
-	${CMAKE_SOURCE_DIR}/external/libsodium-stable)
+		${CMAKE_SOURCE_DIR}/external/libsodium-stable)
 
 #add_definitions(-DVTYSH)
 
@@ -40,7 +45,7 @@ add_executable(wg_autod
 		src/autod/vip_pool.cpp
 		src/autod/sodium_aead.cpp
 		src/autod/common.cpp)
-target_link_libraries (wg_autod spdlog boost_program_options sodium)
+target_link_libraries (wg_autod wg spdlog boost_program_options sodium)
 
 #client
 add_executable(wg_autoc
@@ -50,4 +55,4 @@ add_executable(wg_autoc
 		src/autoc/configuration.cpp
 		src/autoc/sodium_aead.cpp
 		src/autoc/common.cpp)
-target_link_libraries (wg_autoc spdlog boost_program_options sodium)
+target_link_libraries (wg_autoc wg spdlog boost_program_options sodium)

@@ -1,0 +1,70 @@
+#
+# Makefile for wg library
+#
+# make target=linux
+# make target=macosx
+#
+
+CROSS = aarch64-openwrt-linux-musl-
+CC = $(CROSS)gcc
+AR = $(CROSS)ar rv
+RANLIB = $(CROSS)ranlib
+
+CLEANFILES	= $(SLIB_OBJ) $(SLIB_REALNAME)
+MY_CFLAGS	= $(CFLAGS) -g -O2 #-D_BSD_SOURCE -D__FAVOR_BSD -D_SVID_SOURCE
+SLIB_CFLAGS	= -fPIC
+
+all: slib lib
+
+TARGET	= wg
+SLIB_SRC = genkey.c curve25519.c encoding.c pubkey.c sec_store.c
+SLIB_OBJ = ${SLIB_SRC:.c=.o}
+LIB_OBJ = ${SLIB_SRC:.c=.o}
+
+LIB_TARGET = lib$(TARGET).a
+SLIB_VERSION = 0
+SLIB_RELEASE = 0
+ifeq ($(target), linux)
+SLIB_TARGET = lib$(TARGET).so
+#SLIB_SONAME = $(SLIB_TARGET).$(SLIB_VERSION)
+#SLIB_REALNAME = $(SLIB_SONAME).$(SLIB_RELEASE)
+SLIB_SONAME = $(SLIB_TARGET)
+SLIB_REALNAME = $(SLIB_SONAME)
+endif
+ifeq ($(target), macosx)
+SLIB_TARGET = lib$(TARGET).dylib
+SLIB_SONAME = lib$(TARGET).dylib
+SLIB_REALNAME = lib$(TARGET).dylib
+endif
+
+.c.o:
+	$(CC) $(SLIB_CFLAGS) $(MY_CFLAGS) -c $< 
+
+slib:	$(SLIB_OBJ)
+ifeq ($(target), linux)
+	$(CC) -g -shared -Wl,-soname,$(SLIB_SONAME) \
+		-o $(SLIB_REALNAME) $(SLIB_OBJ)
+endif
+ifeq ($(target), macosx)
+	$(CC) -g -dynamiclib \
+		-o $(SLIB_REALNAME) $(SLIB_OBJ)
+endif
+
+lib:	$(LIB_OBJ)
+	${AR} ${LIB_TARGET} ${LIB_OBJ}
+	${RANLIB} ${LIB_TARGET}
+
+install: $(SLIB_REALNAME)
+ifeq ($(target), linux)
+#	@cp -f lib$(TARGET)* $(PROJ_LIB) && /sbin/ldconfig -n $(PROJ_LIB) \
+#		&& ln -sf $(PROJ_LIB)/$(SLIB_SONAME) $(PROJ_LIB)/$(SLIB_TARGET) \
+#		&& echo "installed!"
+#	@cp *.a .. 
+	./ln.sh
+endif
+
+clean:
+	@rm -f $(CLEANFILES)
+	@rm -f *.a
+	@rm -f *.so*
+	@rm -rf *.dylib

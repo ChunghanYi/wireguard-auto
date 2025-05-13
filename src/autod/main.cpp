@@ -15,6 +15,9 @@
 #include "inc/sodium_aead.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
+extern "C" {
+	bool initialize_curve25519(int mode, char *pubkey);
+}
 
 WgacServer wgacs;
 Config configurations;
@@ -166,9 +169,24 @@ int main(int argc, char* argv[]) {
 	::signal(SIGQUIT, sig_handler);
 	::signal(SIGTERM, sig_handler);
 
+	// Initialize VPN IP table
 	viptable.init_vip_table();
+
+	// Initialize vtysh map table
 	vtyshell::initializeVtyshMap();
+
+	// Initialize libsodium
 	sodium_aead::initialize_sodium();
+
+	// Initialize curve25519 keypair(private/public keys)
+	char pubkey_base64[WG_KEY_LEN_BASE64] = {};
+	if (!initialize_curve25519(1, pubkey_base64)) {
+		spdlog::warn("Failed to get curve25519 keypair.");
+	} else {
+		spdlog::debug("WireGuard public key => {}", pubkey_base64);
+		std::string s(pubkey_base64);
+		configurations.setstr("this_public_key", s);
+	}
 
 	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);
 	pipe_ret_t startRet = wgacs.start(wgac_port);

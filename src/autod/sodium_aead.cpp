@@ -1,5 +1,8 @@
 /*
  * libsodium AEAD routines
+ * Key exchange: X25519, Encryption: XSalsa20, Authentication: Poly1305
+ * Let's see : https://libsodium.gitbook.io/doc/public-key_cryptography/authenticated_encryption
+ *
  * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT

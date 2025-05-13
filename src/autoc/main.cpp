@@ -12,6 +12,9 @@
 #include "inc/sodium_aead.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
+extern "C" {
+	bool initialize_curve25519(int mode, char *pubkey);
+}
 
 WgacClient wgacc;
 const std::string versionString { "v0.3.00" };
@@ -158,7 +161,18 @@ int main(int argc, char* argv[]) {
 	::signal(SIGQUIT, sig_exit);
 	::signal(SIGTERM, sig_exit);
 
+	// Initialize libsodium
 	sodium_aead::initialize_sodium();
+
+	// Initialize curve25519 keypair(private/public keys)
+	char pubkey_base64[WG_KEY_LEN_BASE64] = {};
+	if (!initialize_curve25519(0, pubkey_base64)) {
+		spdlog::warn("Failed to get curve25519 keypair.");
+	} else {
+		spdlog::debug("WireGuard public key => {}", pubkey_base64);
+		std::string s(pubkey_base64);
+		wgacc.getConf().setstr("this_public_key", s);
+	}
 
 	// connect client to an open server
 	bool connected = false;

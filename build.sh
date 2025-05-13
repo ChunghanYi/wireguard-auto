@@ -51,6 +51,13 @@ build_it()
 			cd $CPPPATH
 		fi
 
+		if [ -d ./lib/wg-tools ]; then
+			cd ./lib/wg-tools
+			make clean
+			make target=linux
+			cd $CPPPATH
+		fi
+
 		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
 			mkdir -p build

@@ -67,6 +67,13 @@ build_it()
 			cd $WGAC_PATH
         fi
 
+		if [ -d ./lib/wg-tools ]; then
+			cd ./lib/wg-tools
+			make -f ./Makefile.arm64 clean
+			make -f ./Makefile.arm64 target=linux
+			cd $WGAC_PATH
+		fi
+
 		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
 			mkdir -p build
