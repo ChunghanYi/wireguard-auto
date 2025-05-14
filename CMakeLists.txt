@@ -43,7 +43,7 @@ add_executable(wg_autod
 		src/autod/vtysh.cpp
 		src/autod/configuration.cpp
 		src/autod/vip_pool.cpp
-		src/autod/sodium_aead.cpp
+		src/autod/sodium_ae.cpp
 		src/autod/common.cpp)
 target_link_libraries (wg_autod wg spdlog boost_program_options sodium)
 
@@ -53,6 +53,6 @@ add_executable(wg_autoc
 		src/autoc/client.cpp
 		src/autoc/communication.cpp
 		src/autoc/configuration.cpp
-		src/autoc/sodium_aead.cpp
+		src/autoc/sodium_ae.cpp
 		src/autoc/common.cpp)
 target_link_libraries (wg_autoc wg spdlog boost_program_options sodium)

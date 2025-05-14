@@ -9,7 +9,7 @@
 #include <signal.h>
 #include "inc/client.h"
 #include "inc/configuration.h"
-#include "inc/sodium_aead.h"
+#include "inc/sodium_ae.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
 extern "C" {
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
 	::signal(SIGTERM, sig_exit);
 
 	// Initialize libsodium
-	sodium_aead::initialize_sodium();
+	sodium_ae::initialize_sodium();
 
 	// Initialize curve25519 keypair(private/public keys)
 	char pubkey_base64[WG_KEY_LEN_BASE64] = {};

@@ -9,9 +9,9 @@
 #include "inc/client.h"
 #include "inc/message.h"
 #include "inc/common.h"
-#include "inc/sodium_aead.h"
+#include "inc/sodium_ae.h"
 
-namespace sodium_aead
+namespace sodium_ae
 {
 	extern std::vector<unsigned char> client_secret_key;
 	extern std::vector<unsigned char> server_public_key;
@@ -78,7 +78,7 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	_server.sin_port = htons(port);
 }
 
-#ifdef NO_AEAD_METHOD
+#ifdef NO_AE_METHOD
 pipe_ret_t WgacClient::sendMsg(const char* msg, size_t size) {
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
@@ -124,11 +124,11 @@ void WgacClient::receiveTask() {
 		}
 	}
 }
-#else /* AEAD method */
+#else /* AE method */
 pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 	std::vector<unsigned char> original_message(msg, msg + size);
-	std::vector<unsigned char> encrypted_message = sodium_aead::encrypt_message(original_message,
-			sodium_aead::server_public_key, sodium_aead::client_secret_key);
+	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+			sodium_ae::server_public_key, sodium_ae::client_secret_key);
 
 	const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
 
@@ -171,8 +171,8 @@ void WgacClient::receiveTask() {
 			return;
 		} else {
 			std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
-			std::vector<unsigned char> decrypted_message = sodium_aead::decrypt_message(
-					encrypted_message, sodium_aead::server_public_key, sodium_aead::client_secret_key);
+			std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
+					encrypted_message, sodium_ae::server_public_key, sodium_ae::client_secret_key);
 			memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
 
 			/* Let's put this message to <message queue>. */
