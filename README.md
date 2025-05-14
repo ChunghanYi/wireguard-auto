@@ -121,6 +121,10 @@ $ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 
 <Fast C++ logging library>
   https://github.com/gabime/spdlog
+
+<wireguard-tools>
+  https://github.com/WireGuard/wireguard-tools
+
 ```
   <br>
 
