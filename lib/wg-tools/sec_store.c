@@ -22,12 +22,12 @@
 #include "sec_store.h"
 
 const char *GEN_KEY[1] = { "genkey" };
-char client_publickey_file_path[256]      = "../config/client_publickey";       //TBD
-char client_privatekey_file_path[256] = "../config/client_privatekey";  //TBD
-char server_publickey_file_path[256]      = "../config/server_publickey";       //TBD
-char server_privatekey_file_path[256] = "../config/server_privatekey";  //TBD
+char client_publickey_file_path[256]  = "../config/client_publickey";   //TBD
+char client_privatekey_file_path[256] = "../config/client_privatekey";
+char server_publickey_file_path[256]  = "../config/server_publickey";
+char server_privatekey_file_path[256] = "../config/server_privatekey";
 
-#if 0
+#ifndef NO_FILE_ENCRYPTYION
 const unsigned char __key[crypto_secretstream_xchacha20poly1305_KEYBYTES] = "-xchacha20poly1305-";
 
 #define CHUNK_SIZE 4096
@@ -58,7 +58,7 @@ static int encrypt_buffer(const char *target_file, char *source_buffer)
 		fwrite(buf_out, 1, (size_t) out_len, fp_t);
 		fclose(fp_t);
 	} else {
-		fprintf(stderr, "Opening target file(%s) failed.\n", target_file);
+		fprintf(stderr, "(%s)Opening target file(%s) failed.\n", __func__, target_file);
 	}
 	return 0;
 }
@@ -103,7 +103,7 @@ static int decrypt_buffer(char *target_buffer, const char *source_file)
 		ret = 0;
 		fclose(fp_s);
 	} else {
-		fprintf(stderr, "Opening source file(%s) failed.\n", source_file);
+		fprintf(stderr, "(%s)Opening source file(%s) failed.\n", __func__, source_file);
 	}
 
 	return ret;
@@ -113,7 +113,7 @@ static int decrypt_buffer(char *target_buffer, const char *source_file)
 // Let's store the public key value in a secure storage.
 void store_curve25519_public(int mode, char *base64)
 {
-	FILE *fp;
+	FILE *fp = NULL;
 
 	if (mode == 0) {
 		fp = fopen(client_publickey_file_path, "w");
@@ -129,12 +129,18 @@ void store_curve25519_public(int mode, char *base64)
 // Let's store the private key value in a secure storage.
 int store_curve25519_secret(int mode, char *base64)
 {
-#if 0
-	if (encrypt_buffer(privatekey_file_path, base64) != 0) {
-		return 0;
+#ifndef NO_FILE_ENCRYPTYION
+	if (mode == 0) {
+		if (encrypt_buffer(client_privatekey_file_path, base64) != 0) {
+			return 0;
+		}
+	} else {
+		if (encrypt_buffer(server_privatekey_file_path, base64) != 0) {
+			return 0;
+		}
 	}
 #else
-	FILE *fp;
+	FILE *fp = NULL;
 	if (mode == 0) {
 		fp = fopen(client_privatekey_file_path, "w");
 	} else {
@@ -152,12 +158,18 @@ int store_curve25519_secret(int mode, char *base64)
 int get_privatekey(int mode, char *private)
 {
 	memset(private, 0, WG_KEY_LEN_BASE64);
-#if 0
-	if (decrypt_buffer(private, privatekey_file_path) != 0) {
-		return 0;
+#ifndef NO_FILE_ENCRYPTYION
+	if (mode == 0) {
+		if (decrypt_buffer(private, client_privatekey_file_path) != 0) {
+			return 0;
+		}
+	} else {
+		if (decrypt_buffer(private, server_privatekey_file_path) != 0) {
+			return 0;
+		}
 	}
 #else
-	FILE *fp;
+	FILE *fp = NULL;
 	char xbuf[WG_KEY_LEN_BASE64+1];
 	if (mode == 0) {
 		fp = fopen(client_privatekey_file_path, "r");
@@ -185,13 +197,13 @@ bool initialize_curve25519(int mode, char *pubkey)
 	if (mode == 0) {
 		if (access(client_privatekey_file_path, F_OK) != 0) {
 			genkey_main(1, GEN_KEY, mode);
-			fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
+			//fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
 			sleep(1);
 		}
 	} else {
 		if (access(server_privatekey_file_path, F_OK) != 0) {
 			genkey_main(1, GEN_KEY, mode);
-			fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
+			//fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
 			sleep(1);
 		}
 	}
