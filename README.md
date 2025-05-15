@@ -131,6 +131,9 @@ $ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 <wireguard-tools>
   https://github.com/WireGuard/wireguard-tools
 
+<C++20 STL cookbook examples>
+  https://github.com/PacktPublishing/CPP-20-STL-Cookbook
+
 ```
   <br>
 
