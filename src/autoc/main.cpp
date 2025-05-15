@@ -17,7 +17,7 @@ extern "C" {
 }
 
 WgacClient wgacc;
-const std::string versionString { "v0.3.00" };
+const std::string versionString { "v0.4.00" };
 std::string server_ip;
 unsigned short wgac_port = 51822;
 

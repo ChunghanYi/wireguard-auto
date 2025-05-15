@@ -109,17 +109,27 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 	if (ok_flag) {
 		char xbuf[256];
 		sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
-		system(xbuf);
+		std::system(xbuf);
 	}
-#else
-	snprintf(szInfo, sizeof(szInfo),
-			"wg set wg0 peer %s allowed-ips %s/32 endpoint %s:%d persistent-keepalive 25 &",
-			rmsg.public_key, vpnip_str, epip_str, rmsg.epPort);
-	system(szInfo);
-#endif
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard setup is complete.");
+#else
+	std::string error_text;
+	std::vector<std::string> output_list;
+	snprintf(szInfo, sizeof(szInfo),
+			"wg set wg0 peer %s allowed-ips %s/32 endpoint %s:%d persistent-keepalive 25 &",
+			rmsg.public_key, vpnip_str, epip_str, rmsg.epPort);
+
+	std::string cmd(szInfo);
+	bool exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::info("--- wireguard rule [{}]", szInfo);
+		spdlog::info("OK, wireguard setup is complete.");
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+#endif
 }
 
 /**
@@ -135,15 +145,25 @@ void WgacServer::remove_wireguard(const message_t& rmsg) {
 	if (ok_flag) {
 		char xbuf[256];
 		sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
-		system(xbuf);
+		std::system(xbuf);
 	}
-#else
-	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", rmsg.public_key);
-	system(szInfo);
-#endif
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard rule is removed.");
+#else
+	std::string error_text;
+	std::vector<std::string> output_list;
+	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", rmsg.public_key);
+
+	std::string cmd(szInfo);
+	bool exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::info("--- wireguard rule [{}]", szInfo);
+		spdlog::info("OK, wireguard rule is removed.");
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+#endif
 }
 
 /**
@@ -195,16 +215,18 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg;
 				smsg.type = AUTOCONN::PONG;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				if (inet_pton(AF_INET, configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+				if (inet_pton(AF_INET,configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_ip) failed.");
 					send_NOK(client);
 				} else {
-					if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+					if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(),
+								&(smsg.vpnNetmask)) != 1) {
 						spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 						send_NOK(client);
 					} else {
 						memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-						if (inet_pton(AF_INET, configurations.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
+						if (inet_pton(AF_INET, configurations.getstr("this_endpoint_ip").c_str(),
+									&(smsg.epIP)) != 1) {
 							spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 							send_NOK(client);
 						} else {

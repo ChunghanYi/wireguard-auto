@@ -5,6 +5,11 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <cstring>
+
 #include <cstdint>
 #include <string>
 #include "inc/pipe_ret_t.h"
@@ -50,4 +55,39 @@ pipe_ret_t pipe_ret_t::failure(const std::string &msg) {
 
 pipe_ret_t pipe_ret_t::success(const std::string &msg) {
     return pipe_ret_t(true, msg);
+}
+
+
+namespace common
+{
+
+// Exec command in shell and capture output
+bool exec(const std::string& cmd, std::vector<std::string>& output_list, std::string& error_text) {
+	FILE* pipe = popen(cmd.c_str(), "r");
+
+	if (!pipe) {
+		// We need more details in case of failure
+		error_text = "error code: " + std::to_string(errno) + " error text: " + strerror(errno);
+		return false;
+	}
+
+	char buffer[256];
+
+	while (!feof(pipe)) {
+		if (fgets(buffer, 256, pipe) != NULL) {
+			size_t newbuflen = strlen(buffer);
+
+			// remove newline at the end
+			if (buffer[newbuflen - 1] == '\n') {
+				buffer[newbuflen - 1] = '\0';
+			}
+
+			output_list.push_back(buffer);
+		}
+	}
+
+	pclose(pipe);
+	return true;
+}
+
 }

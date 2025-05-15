@@ -22,7 +22,7 @@ extern "C" {
 WgacServer wgacs;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.3.00" }; 
+const std::string versionString { "v0.4.00" }; 
 unsigned short wgac_port = 51822;
 
 

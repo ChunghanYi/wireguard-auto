@@ -78,7 +78,7 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	_server.sin_port = htons(port);
 }
 
-#ifdef NO_AE_METHOD
+#ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
 pipe_ret_t WgacClient::sendMsg(const char* msg, size_t size) {
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 

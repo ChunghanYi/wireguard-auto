@@ -13,8 +13,8 @@
 #include <vector>
 #include <map>
 #include "inc/server.h"
+#include "inc/common.h"
 #include "inc/vip_pool.h"
-#include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
 //#define DEBUG
@@ -108,16 +108,7 @@ bool VipTable::init_vip_table() {
  * Get an entry from vip-used-table(map table)
  */
 struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = vip_used_table.find(macstr);
 	if (it != vip_used_table.end()) {
@@ -137,16 +128,7 @@ struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
  */
 vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
 	bool ok_flag {false};
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	vip_entry_t* tip = new vip_entry_t;
 	if (!tip) {
@@ -191,16 +173,7 @@ vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
  * Remove an entry from vip-used-table(map table) and update vip pool table(vector table)
  */
 bool VipTable::remove_address_binding(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = vip_used_table.find(macstr);
 	if (it != vip_used_table.end()) {

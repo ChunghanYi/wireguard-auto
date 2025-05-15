@@ -17,6 +17,7 @@
 #include "inc/client.h"
 #include "inc/configuration.h"
 #include "inc/pipe_ret_t.h"
+#include "inc/common.h"
 #include "spdlog/spdlog.h"
 
 /**
@@ -235,15 +236,25 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 
 	sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
 	system(xbuf);
-#else
-	snprintf(szInfo, sizeof(szInfo),
-			"wg set wg0 peer %s allowed-ips %s/32 endpoint %s:%d persistent-keepalive 25 &",
-			rmsg->public_key, vpnip_str, epip_str, rmsg->epPort);
-	system(szInfo);
-#endif
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard setup is complete.");
+#else
+	std::string error_text;
+	std::vector<std::string> output_list;
+	snprintf(szInfo, sizeof(szInfo),
+			"wg set wg0 peer %s allowed-ips %s/32 endpoint %s:%d persistent-keepalive 25 &",
+			rmsg->public_key, vpnip_str, epip_str, rmsg->epPort);
+
+	std::string cmd(szInfo);
+	bool exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::info("--- wireguard rule [{}]", szInfo);
+		spdlog::info("OK, wireguard setup is complete.");
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+#endif
 }
 
 /**
@@ -261,13 +272,23 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
 
 	sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
 	system(xbuf);
-#else
-	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", rmsg->public_key);
-	system(szInfo);
-#endif
 
 	spdlog::info("--- wireugard rule [{}]", szInfo);
 	spdlog::info("OK, wireguard rule is removed.");
+#else
+	std::string error_text;
+	std::vector<std::string> output_list;
+	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", rmsg->public_key);
+
+	std::string cmd(szInfo);
+	bool exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::info("--- wireugard rule [{}]", szInfo);
+		spdlog::info("OK, wireguard rule is removed.");
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+#endif
 }
 
 /**

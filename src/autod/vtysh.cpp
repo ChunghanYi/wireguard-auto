@@ -12,7 +12,6 @@
 #include <map>
 #include "inc/server.h"
 #include "inc/vtysh.h"
-#include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
 namespace vtyshell
@@ -79,7 +78,7 @@ bool getIPNetmask(std::string netinfo, char* ipstr, char* netmaskstr) {
 bool runCommand(const char* buf) {
 	char command[256];
 	sprintf(command, "/usr/bin/qrwg/vtysh -e \"%s\"", buf);
-	system(command);
+	std::system(command);
 	return true;
 }
 
@@ -198,7 +197,7 @@ bool doAction(std::string& s) {
 	if (ok_flag) {
 		char command[256];
 		sprintf(command, "/usr/bin/qrwg/vtysh -e \"write\"");
-		system(command);
+		std::system(command);
 	}
 	return true;
 }

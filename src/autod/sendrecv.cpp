@@ -40,7 +40,7 @@ void Client::startListen() {
 	_receiveThread = new std::thread(&Client::receiveTask, this);
 }
 
-#ifdef NO_AE_METHOD
+#ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
 void Client::send(const char* msg, size_t msgSize) const {
 	const size_t numBytesSent = ::send(_sockfd.get(), (char *)msg, msgSize, 0);
 
@@ -88,7 +88,7 @@ void Client::receiveTask() {
 		}
 	}
 }
-#else /* AEAD method */
+#else /* AE method */
 void Client::send(unsigned char* msg, size_t msgSize) const {
 	std::vector<unsigned char> original_message(msg, msg + msgSize);
 	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,

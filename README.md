@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.3.00). 😎
+It's currently in development(v0.4.00). 😎
 
 ```
 

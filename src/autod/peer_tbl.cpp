@@ -12,24 +12,15 @@
 #include <map>
 #include "inc/server.h"
 #include "inc/message.h"
+#include "inc/common.h"
 #include "inc/peer_tbl.h"
-#include "inc/pipe_ret_t.h"
 #include "spdlog/spdlog.h"
 
 /**
  * Get a peer(remote client) from the rclient table
  */
 peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = peers.find(macstr);
 	if (it != peers.end()) {
@@ -43,16 +34,7 @@ peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
  * Add a peer(remote client) to the rclient table
  */
 bool WgacServer::add_peer_table(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	peer_table_t* peer = get_peer_table(rmsg);
 	if (peer == nullptr) {
@@ -75,16 +57,7 @@ bool WgacServer::add_peer_table(const message_t& rmsg) {
  * Update a peer(remote client) info to the rclient table
  */
 bool WgacServer::update_peer_table(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	peer_table_t* peer = get_peer_table(rmsg);
 	if (peer) {
@@ -105,16 +78,7 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
  * Remove a peer(remote client) info from the rclient table
  */
 bool WgacServer::remove_peer_table(const message_t& rmsg) {
-	auto get_mac_addr = [rmsg] () -> std::string {
-		char s[18];
-		snprintf(s, sizeof(s), "%02x:%02x:%02x:%02x:%02x:%02x",
-				rmsg.mac_addr[0], rmsg.mac_addr[1],
-				rmsg.mac_addr[2], rmsg.mac_addr[3],
-				rmsg.mac_addr[4], rmsg.mac_addr[5]);
-		std::string temp(s);
-		return temp;
-	};
-	std::string macstr = get_mac_addr();
+	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = peers.find(macstr);
 	if (it != peers.end()) {

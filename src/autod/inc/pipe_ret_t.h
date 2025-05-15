@@ -18,4 +18,3 @@ private:
 	bool _successFlag = false;
 	std::string _msg = "";
 };
-
