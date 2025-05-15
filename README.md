@@ -122,6 +122,12 @@ $ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 <Fast C++ logging library>
   https://github.com/gabime/spdlog
 
+<Boost library>
+  https://www.boost.org/releases/latest
+
+<FastNetMon>
+  https://github.com/pavel-odintsov/fastnetmon
+
 <wireguard-tools>
   https://github.com/WireGuard/wireguard-tools
 
