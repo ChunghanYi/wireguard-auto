@@ -59,6 +59,16 @@ bool WgacClient::send_hello_message() {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
+
+	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+
+	if (inet_pton(AF_INET, _autoConf.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
+		spdlog::warn("inet_pton(this_endpoint_ip) failed.");
+		return false;
+	}
+	smsg.epPort = _autoConf.getint("this_endpoint_port");
+	memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
+
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
 		spdlog::debug(">>> Failed to send message.");

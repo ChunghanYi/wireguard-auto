@@ -51,6 +51,25 @@ build_it()
 			cd $CPPPATH
 		fi
 
+		if [ ! -d ./external/hiredis-1.3.0 ]; then
+			cd external
+			if [ ! -r hiredis-1.3.0.tar.gz ]; then
+				rm -f ./v1.3.0.tar.gz* > /dev/null 2>&1
+				wget https://github.com/redis/hiredis/archive/refs/tags/v1.3.0.tar.gz
+				mv v1.3.0.tar.gz hiredis-1.3.0.tar.gz > /dev/null 2>&1
+			fi
+			tar xvzf hiredis-1.3.0.tar.gz > /dev/null 2>&1
+			cd hiredis-1.3.0
+			mkdir -p build > /dev/null 2>&1
+			cd build; cmake ..
+			make
+			#make install
+			cp -r libhiredis.so* ../../lib > /dev/null 2>&1
+			mkdir -p ../../lib/include/hiredis > /dev/null 2>&1
+			cp -r ../*.h ../../lib/include/hiredis > /dev/null 2>&1
+			cd $CPPPATH
+		fi
+
 		if [ -d ./lib/wg-tools ]; then
 			cd ./lib/wg-tools
 			make clean
@@ -70,6 +89,7 @@ build_it()
 		rm -rf ./external/spdlog > /dev/null 2>&1
 		rm -rf ./external/boost_1_88_0 > /dev/null 2>&1
 		rm -rf ./external/libsodium-stable > /dev/null 2>&1
+		rm -rf ./external/hiredis-1.3.0 > /dev/null 2>&1
 	fi
 }
 

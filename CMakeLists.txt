@@ -22,16 +22,22 @@ add_library(boost_program_options STATIC IMPORTED)
 set_target_properties(boost_program_options
 	PROPERTIES IMPORTED_LOCATION
 	${CMAKE_SOURCE_DIR}/external/boost_1_88_0/stage/lib/libboost_program_options.a)
-include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
-	${CMAKE_SOURCE_DIR}/external/boost_1_88_0)
 
 add_library(sodium STATIC IMPORTED)
 set_target_properties(sodium
 	PROPERTIES IMPORTED_LOCATION
 	${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/lib/libsodium.a)
-include_directories(${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include
-		${CMAKE_SOURCE_DIR}/external/libsodium-stable)
 
+add_library(hiredis SHARED IMPORTED)
+set_target_properties(hiredis
+	PROPERTIES IMPORTED_LOCATION
+	${CMAKE_SOURCE_DIR}/external/lib/libhiredis.so)
+
+include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
+                    ${CMAKE_SOURCE_DIR}/external/boost_1_88_0
+                    ${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include)
+
+add_definitions(-DREDIS)
 #add_definitions(-DVTYSH)
 
 #server
@@ -45,7 +51,7 @@ add_executable(wg_autod
 		src/autod/vip_pool.cpp
 		src/autod/sodium_ae.cpp
 		src/autod/common.cpp)
-target_link_libraries (wg_autod wg spdlog boost_program_options sodium)
+target_link_libraries (wg_autod wg spdlog boost_program_options sodium hiredis)
 
 #client
 add_executable(wg_autoc

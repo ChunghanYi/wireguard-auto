@@ -30,6 +30,11 @@ $ ls -l
 ```
 <server side>
 -------------
+$ sudo apt-get install redis-server
+$ sudo service redis-server status
+  -> install redis-server at first.
+  -> The redis will store wireguard configuration information for the client.
+
 $ vi ../config/server.conf
   -> Edit this file.
 debug_mode = 1
@@ -65,6 +70,13 @@ $ sudo ./wg_autod --foreground --config ../config/server.conf
 [2025-01-22 13:08:41.259] [info] szInfo -----> [wg set wg0 peer 6L9YraonVAB90h+dxhKEumHUQh5wjqSmemOs1PGvgwE= allowed-ips 172.16.1.100/32 endpoint 192.168.8.205:51820 persistent-keepalive 25 &]
 [2025-01-22 13:08:41.259] [info] OK, wireguard setup is complete.
 ...
+
+$ redis-cli
+127.0.0.1:6379> keys wgac*
+1) "wgac:7456.3caf.889d"
+127.0.0.1:6379> get wgac:7456.3caf.889d
+"10.1.0.1 255.255.255.0 ON8X17qJWTthbc1KTxxdvR0RvSCdSDf7TXaYYi/2YS4= 192.168.8.205:51820 10.1.1.0/24,192.168.0.0/16"
+127.0.0.1:6379>
 
 <client side>
 --------------
@@ -130,6 +142,12 @@ $ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
 
 <wireguard-tools>
   https://github.com/WireGuard/wireguard-tools
+
+<libsodium>
+  https://github.com/jedisct1/libsodium
+
+<hiredis>
+  https://github.com/redis/hiredis
 
 <C++20 STL cookbook examples>
   https://github.com/PacktPublishing/CPP-20-STL-Cookbook
