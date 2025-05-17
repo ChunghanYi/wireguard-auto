@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <sstream>
 #include "inc/server.h"
 #include "inc/message.h"
 #include "inc/common.h"
@@ -17,6 +18,7 @@
 #include "spdlog/spdlog.h"
 #include <hiredis/hiredis.h>
 
+//#define DEBUG
 #ifdef REDIS
 unsigned int redis_port = 6379;
 std::string redis_host  = "127.0.0.1";
@@ -25,6 +27,16 @@ redisContext* redis_init_connection();
 void store_data_in_redis(std::string key_name, std::string value_details);
 void remove_data_in_redis(std::string key_name);
 void get_data_in_redis(std::string key_name);
+
+std::string trimstr(const std::string& s) {
+	constexpr const char* whitespace{ " \t\r\n\v\f" };
+
+	if (s.empty()) return s;     // empty string
+	const auto first { s.find_first_not_of(whitespace) };
+	if (first == std::string::npos) return {};  // all whitespace
+	const auto last { s.find_last_not_of(whitespace) };
+	return s.substr(first, (last - first + 1));
+}
 
 void store_data_in_redis(std::string key_name, std::string value_details) {
 	redisReply* reply           = NULL;
@@ -101,7 +113,16 @@ void get_data_in_redis(std::string key_name) {
 			spdlog::error("Unfortunately we can't store data in Redis because server reject connection");
 		}
 	} else {
-		spdlog::info("### reply->str -----> [{}]", reply->str);
+		if (reply->str) {
+			spdlog::info("### reply->str -----> [{}]", reply->str);
+			std::string line {reply->str}, word {};
+			std::stringstream ss {line};
+			while (std::getline(ss, word, ' ')) {
+				if (word.empty()) continue;
+				spdlog::info("### value field: [{}]", trimstr(word).c_str());
+			}
+		}
+
 		freeReplyObject(reply);
 	}
 
