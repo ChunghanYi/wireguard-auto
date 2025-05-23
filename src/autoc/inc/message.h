@@ -10,13 +10,17 @@
 #include <netinet/in.h>
 
 enum class AUTOCONN {
-	HELLO = 0,
-	PING  = 1,
-	PONG  = 2,
-	OK    = 3,
-	NOK   = 4,
-	BYE   = 5,
-	EXIST = 6
+	HELLO                        = 0,
+	PING                         = 1,
+	PONG                         = 2,
+	OK                           = 3,
+	NOK                          = 4,
+	BYE                          = 5,
+	EXIST                        = 6,
+	SEND_VPN_INFORMATION         = 7,
+	SEND_VPN_INFORMATION_AGAIN   = 8,
+	START_VPN                    = 9,
+	START_VPN_AGAIN              = 10
 };
 
 #define WG_CLIENT_PORT 51820
@@ -36,3 +40,12 @@ struct message {
 
 #define ENC_MESSAGE_SIZE (sizeof(struct message) + 40)
 using message_t = struct message;
+
+#ifdef WIREGUARD_C_DAEMON
+struct ac_message {
+	message_t m;
+	struct in_addr clientIP;                 // 4 bytes : AC client vpn IP address (IPv4)
+}  __attribute__ ((packed));
+
+using ac_message_t = struct ac_message;
+#endif

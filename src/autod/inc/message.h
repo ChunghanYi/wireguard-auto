@@ -10,13 +10,17 @@
 #include <netinet/in.h>
 
 enum class AUTOCONN {
-	HELLO = 0,
-	PING  = 1,
-	PONG  = 2,
-	OK    = 3,
-	NOK   = 4,
-	BYE   = 5,
-	EXIST = 6
+	HELLO                          = 0,
+	PING                           = 1,
+	PONG                           = 2,
+	OK                             = 3,
+	NOK                            = 4,
+	BYE                            = 5,
+	EXIST                          = 6,
+	SEND_VPN_INFORMATION           = 7,
+	SEND_VPN_INFORMATION_AGAIN     = 8,
+	START_VPN                      = 9,
+	START_VPN_AGAIN                = 10
 };
 
 #define WG_KEY_LEN 32

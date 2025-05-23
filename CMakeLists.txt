@@ -37,7 +37,7 @@ include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
                     ${CMAKE_SOURCE_DIR}/external/boost_1_88_0
                     ${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include)
 
-add_definitions(-DREDIS)
+add_definitions(-DREDIS -DWIREGUARD_C_DAEMON)
 #add_definitions(-DVTYSH)
 
 #server

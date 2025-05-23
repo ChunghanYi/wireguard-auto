@@ -113,7 +113,7 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 	}
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
-	spdlog::info("OK, wireguard setup is complete.");
+	spdlog::info("--- OK, wireguard setup is complete.");
 #else
 	std::string error_text;
 	std::vector<std::string> output_list;
@@ -125,7 +125,7 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 	bool exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
 		spdlog::info("--- wireguard rule [{}]", szInfo);
-		spdlog::info("OK, wireguard setup is complete.");
+		spdlog::info("--- OK, wireguard setup is complete.");
 	} else {
 		spdlog::warn("{}", error_text);
 	}

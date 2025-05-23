@@ -45,6 +45,11 @@ public:
 	void setup_wireguard(message_t* rmsg);
 	void remove_wireguard(message_t* rmsg);
 
+#ifdef WIREGUARD_C_DAEMON
+	void send_ac_vpn_message(message_t* rmsg);
+	int send_start_vpn_message(enum AUTOCONN type);
+#endif
+
 	Config& getConf() { return _autoConf; };
 
 	bool isConnected() const { return _isConnected; }
@@ -66,4 +71,10 @@ private:
 	void setAddress(const std::string& address, unsigned short port);
 	void receiveTask();
 	void terminateReceiveThread();
+
+#ifdef WIREGUARD_C_DAEMON
+	ssize_t xsendto(int sockfd, const void* buf, size_t len, int flags, const
+			struct sockaddr* dest_addr, socklen_t addrlen);
+	int send_local_message(ac_message_t* smsg);
+#endif
 };

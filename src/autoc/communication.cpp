@@ -248,8 +248,17 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	system(xbuf);
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
-	spdlog::info("OK, wireguard setup is complete.");
+	spdlog::info("--- OK, wireguard setup is complete.");
 #else
+#ifdef WIREGUARD_C_DAEMON
+
+	send_ac_vpn_message(rmsg);
+
+	send_start_vpn_message(AUTOCONN::START_VPN);
+
+	spdlog::info("--- OK, wireguard setup is complete.");
+
+#else /* WIREGUARD KERNEL */
 	std::string error_text;
 	std::vector<std::string> output_list;
 	snprintf(szInfo, sizeof(szInfo),
@@ -260,10 +269,11 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	bool exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
 		spdlog::info("--- wireguard rule [{}]", szInfo);
-		spdlog::info("OK, wireguard setup is complete.");
+		spdlog::info("--- OK, wireguard setup is complete.");
 	} else {
 		spdlog::warn("{}", error_text);
 	}
+#endif
 #endif
 }
 
@@ -321,3 +331,88 @@ void WgacClient::start() {
 		sleep(5);
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+/* wrapper around sendto for non blocking I/O */
+#ifdef WIREGUARD_C_DAEMON
+ssize_t WgacClient::xsendto(int sockfd, const void* buf, size_t len, int flags, const
+		struct sockaddr* dest_addr, socklen_t addrlen) {
+	ssize_t r;
+	fd_set set;
+
+	while ((r = sendto(sockfd, buf, len, flags, dest_addr, addrlen)) == -1
+			&& (errno == EAGAIN || errno == EWOULDBLOCK)) {
+		FD_ZERO(&set);
+		FD_SET(sockfd, &set);
+		select(sockfd+1, NULL, &set, NULL, NULL);
+	}
+	return r;
+}
+
+unsigned short vpn_event_port = 7177;
+
+/* wg_autoc --> wireguard-c daemon */
+int WgacClient::send_local_message(ac_message_t* smsg) {
+	int sd;
+	struct sockaddr_in addr;
+	struct hostent *hostent;
+	int ret = 0;
+
+	sd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (sd < 0) {
+		spdlog::error("Could not create the socket.");
+		return -1;
+	}
+
+	hostent = gethostbyname("127.0.0.1");
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(vpn_event_port);
+	memcpy(&addr.sin_addr, hostent->h_addr, hostent->h_length);
+
+	if (xsendto(sd, smsg, sizeof(ac_message_t), 0,
+				(struct sockaddr*)&addr, sizeof (addr)) == -1) {
+		spdlog::error("xsendto failed.");
+		ret = -1;
+	}
+
+	::close(sd);
+	return ret;
+}
+
+void WgacClient::send_ac_vpn_message(message_t* rmsg) {
+	ac_message_t xmsg;
+	memcpy(&xmsg, rmsg, sizeof(message_t));
+	xmsg.m.type = AUTOCONN::SEND_VPN_INFORMATION;
+	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(xmsg.clientIP)) != 1) {
+		spdlog::warn("inet_pton(this_vpn_ip) failed.");
+		return;
+	}
+
+	if (send_local_message(&xmsg) == 0) {
+		spdlog::info("||| VPNINFO sent to wireguard-c daemon thru loopback socket");
+		usleep(500000);  /* 0.5 seconds */
+	}
+}
+
+int WgacClient::send_start_vpn_message(enum AUTOCONN type) {
+	int ret = 0;
+
+	ac_message_t xmsg;
+	if (type == AUTOCONN::START_VPN) {
+		spdlog::info("||| The START_VPN event sent to wireguard-c daemon thru loopback socket");
+	} else if (type == AUTOCONN::START_VPN_AGAIN) {
+		spdlog::info("||| The START_VPN_AGAIN event sent to wireguard-c daemon thru loopback socket");
+	} else {
+		spdlog::error("Oops, invalid type value passed.");
+		return ret;
+	}
+
+	memset(&xmsg, 0, sizeof(ac_message_t));
+	xmsg.m.type = type;
+	if (send_local_message(&xmsg) == 0) {
+		usleep(500000);  /* 0.5 seconds */
+	}
+	return ret;
+}
+#endif
