@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>start_button.png</file>
+        <file>stop_button.png</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file>wireguard_logo2.png</file>
+    </qresource>
+</RCC>
