@@ -22,10 +22,17 @@
 #include "sec_store.h"
 
 const char *GEN_KEY[1] = { "genkey" };
+#if 0
 char client_publickey_file_path[256]  = "../config/client_publickey";   //TBD
 char client_privatekey_file_path[256] = "../config/client_privatekey";
 char server_publickey_file_path[256]  = "../config/server_publickey";
 char server_privatekey_file_path[256] = "../config/server_privatekey";
+#else
+char client_publickey_file_path[256]  = "/etc/wgauto/client_publickey";
+char client_privatekey_file_path[256] = "/etc/wgauto/client_privatekey";
+char server_publickey_file_path[256]  = "/etc/wgauto/server_publickey";
+char server_privatekey_file_path[256] = "/etc/wgauto/server_privatekey";
+#endif
 
 #ifndef NO_FILE_ENCRYPTYION
 const unsigned char __key[crypto_secretstream_xchacha20poly1305_KEYBYTES] = "-xchacha20poly1305-";
