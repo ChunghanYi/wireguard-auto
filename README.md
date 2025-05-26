@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.5.51). 😎
+It's currently in development(v0.6.00). 😎
 
 ```
 
@@ -24,6 +24,12 @@ $ ls -l
 -rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
 -rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
 
+$ sudo cp ./wg_autoc /usr/local/sbin
+$ sudo cp ./wg_autod /usr/local/sbin
+$ sudo mkdir -p /etc/wgauto
+$ sudo cp ../config/client.conf /etc/wgauto
+$ sudo cp ../config/server.conf /etc/wgauto
+
 ```
 
 ## How to run on Ubuntu 22.04 LTS
@@ -35,7 +41,7 @@ $ sudo service redis-server status
   -> install redis-server at first.
   -> The redis will store wireguard configuration information for the client.
 
-$ vi ../config/server.conf
+$ sudo vi /etc/wgauto/server.conf
   -> Edit this file.
 debug_mode = 1
 
@@ -52,7 +58,7 @@ vpnip_range_begin = 10.1.0.1
 vpnip_range_end = 10.1.0.253
 ~
 
-$ sudo ./wg_autod --help
+$ sudo /usr/local/sbin/wg_autod --help
 Allowed options:
   --help                Print help message
   --version             Show version
@@ -60,7 +66,7 @@ Allowed options:
   --foreground          Run it in foreground
   --config arg          Set path to custom configuration file
 
-$ sudo ./wg_autod --foreground --config ../config/server.conf
+$ sudo /usr/local/sbin/wg_autod --foreground --config /etc/wgauto/server.conf
 [2025-01-22 13:08:33.373] [info] Starting the wg_autod(tcp port 51822)...
 [2025-01-22 13:08:40.755] [info] >>> HELLO message received.
 [2025-01-22 13:08:40.755] [info] --- Preparing vpnIP(10.1.0.2/255.255.255.0) for client.
@@ -80,7 +86,7 @@ $ redis-cli
 
 <client side>
 --------------
-$ vi ../config/client.conf
+$ sudo vi /etc/wgauto/client.conf
   -> Edit this file.
 debug_mode = 1
 
@@ -93,7 +99,7 @@ this_endpoint_port = 51820
 this_allowed_ips = "10.1.1.0/24,192.168.0.0/16"
 ~
 
-$ sudo ./wg_autoc --help
+$ sudo /usr/local/sbin/wg_autoc --help
 Allowed options:
   --help                Print help message
   --version             Show version
@@ -102,7 +108,7 @@ Allowed options:
   --server arg          Specify the server ip address
   --config arg          Set path to custom configuration file
 
-$ sudo ./wg_autoc --foreground --server 127.0.0.1 --config ../config/client.conf
+$ sudo /usr/local/sbin/wg_autoc --foreground --server 127.0.0.1 --config /etc/wgauto/client.conf
 [2025-01-22 13:09:06.870] [info] Client connected successfully
 [2025-01-22 13:09:06.870] [info] >>> HELLO message sent to server.
 [2025-01-22 13:09:07.370] [info] <<< HELLO message received.
