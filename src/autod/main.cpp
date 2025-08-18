@@ -1,6 +1,6 @@
 /*
  * Startup Codes for WireGuard AutoConnect Server
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025 Slowboot.net <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -22,7 +22,7 @@ extern "C" {
 WgacServer wgacs;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.4.00" }; 
+const std::string versionString { "v0.6.50" }; 
 unsigned short wgac_port = 51822;
 
 
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
 
 		if (vm.count("version")) {
 			std::cout << "wg_autod Version: " << versionString << std::endl;
-			std::cout << "Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
+			std::cout << "Copyright (c) 2025 Slowboot.net/Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
 			exit(EXIT_SUCCESS);
 		}
 

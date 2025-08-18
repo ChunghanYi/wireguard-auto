@@ -16,6 +16,9 @@
 #include "inc/common.h"
 #include "inc/message.h"
 #include "inc/sodium_ae.h"
+#ifdef USE_GO_CLIENT
+#include "inc/parser.h"
+#endif
 
 namespace sodium_ae
 {
@@ -42,7 +45,7 @@ void Client::startListen() {
 
 #ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
 void Client::send(const char* msg, size_t msgSize) const {
-	const size_t numBytesSent = ::send(_sockfd.get(), (char *)msg, msgSize, 0);
+	const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
 
 	const bool sendFailed = (numBytesSent < 0);
 	if (sendFailed) {
@@ -70,8 +73,15 @@ void Client::receiveTask() {
 			continue;
 		}
 
+#ifdef USE_GO_CLIENT /* for wireguard windows client */
+		message_t rmsg;
+		char rbuf[1024];
+		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
+		parser::parse_Go_message_string(rbuf, &rmsg);
+#else
 		message_t rmsg;
 		const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
+#endif
 
 		if (numOfBytesReceived < 1) {
 			const bool clientClosedConnection = (numOfBytesReceived == 0);
@@ -89,7 +99,7 @@ void Client::receiveTask() {
 	}
 }
 #else /* AE method */
-void Client::send(unsigned char* msg, size_t msgSize) const {
+void Client::send(const char* msg, size_t msgSize) const {
 	std::vector<unsigned char> original_message(msg, msg + msgSize);
 	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
 			sodium_ae::client_public_key, sodium_ae::server_secret_key);

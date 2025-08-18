@@ -39,6 +39,8 @@ include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
 
 add_definitions(-DREDIS -DWIREGUARD_C_DAEMON)
 #add_definitions(-DVTYSH)
+#for wireguard windows auto connect
+#add_definitions(-DNO_AUTHENTICATED_ENCRYPTION_METHOD -DUSE_GO_CLIENT)
 
 #server
 add_executable(wg_autod
@@ -50,6 +52,7 @@ add_executable(wg_autod
 		src/autod/configuration.cpp
 		src/autod/vip_pool.cpp
 		src/autod/sodium_ae.cpp
+		src/autod/parser.cpp
 		src/autod/common.cpp)
 target_link_libraries (wg_autod wg spdlog boost_program_options sodium hiredis)
 

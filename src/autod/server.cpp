@@ -174,7 +174,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 		case AUTOCONN::HELLO:
 			spdlog::info(">>> HELLO message received.");
 			if (add_peer_table(rmsg)) {
-				message_t smsg;
+				message_t smsg{};  /* initialize to 0 */
 				smsg.type = AUTOCONN::HELLO;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
@@ -212,7 +212,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 		case AUTOCONN::PING:
 			spdlog::info(">>> PING message received.");
 			if (update_peer_table(rmsg)) {
-				message_t smsg;
+				message_t smsg{};
 				smsg.type = AUTOCONN::PONG;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 				if (inet_pton(AF_INET,configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
@@ -245,7 +245,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 		case AUTOCONN::BYE:
 			spdlog::info(">>> BYE message received.");
 			if (remove_peer_table(rmsg)) {
-				message_t smsg;
+				message_t smsg{};
 				smsg.type = AUTOCONN::BYE;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 				memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
@@ -396,7 +396,7 @@ pipe_ret_t WgacServer::sendToAllClients(unsigned char* msg, size_t size) {
  */
 pipe_ret_t WgacServer::sendToClient(const Client& client, unsigned char* msg, size_t size) {
 	try {
-		client.send(msg, size);
+		client.send(reinterpret_cast<const char*>(msg), size);
 	} catch (const std::runtime_error &error) {
 		return pipe_ret_t::failure(error.what());
 	}
@@ -425,12 +425,89 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 	message_t smsg;
 	memcpy(&smsg, &msg, sizeof(message_t));
 
+#ifdef USE_GO_CLIENT /* for wireguard windows client */
+	/* Let's convert message_t structure to C++ string */
+	/* Golang syntax
+	type Message struct {
+		Msg_type    string  `cmd:=HELLO\n`
+		Mac_addr    string  `macaddr:=00-00-00-00-00-00\n`
+		VpnIP       string  `vpnip:=10.1.1.1\n`
+		VpnNetmask  string  `vpnnetmask:=255.255.255.0\n`
+		Public_key  string  `publickey:=01234567890123456789012345678901234567890123\n`
+		EpIp        string  `epip:=192.168.1.1\n`
+		EpPort      string  `epport:=51280\n`
+		Allowed_ips string  `allowedips:=10.1.1.0/24,192.168.1.0\n
+	}
+	*/
+
+	std::string total_s, s;
+	char buffer[512];
+
+	if (msg.type == AUTOCONN::HELLO)
+		total_s = "cmd:=HELLO\n";
+	else if (msg.type == AUTOCONN::PING)
+		total_s = "cmd:=PING\n";
+	else if (msg.type == AUTOCONN::PONG)
+		total_s = "cmd:=PONG\n";
+	else if (msg.type == AUTOCONN::OK)
+		total_s = "cmd:=OK\n";
+	else if (msg.type == AUTOCONN::NOK)
+		total_s = "cmd:=NOK\n";
+	else if (msg.type == AUTOCONN::BYE)
+		total_s = "cmd:=BYE\n";
+	else
+		total_s = "cmd:=NOK\n";
+
+	snprintf(buffer, sizeof(buffer), "macaddr:=%02X-%02X-%02X-%02X-%02X-%02X\n",
+			msg.mac_addr[0], msg.mac_addr[1], msg.mac_addr[2],
+			msg.mac_addr[3], msg.mac_addr[4], msg.mac_addr[5]);
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "vpnip:=%s\n", inet_ntoa(msg.vpnIP));
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "vpnnetmask:=%s\n", inet_ntoa(msg.vpnNetmask));
+	s = buffer;
+	total_s += s;
+
+	std::string pubkey(reinterpret_cast<const char*>(msg.public_key));
+	total_s = total_s + "publickey:=" + pubkey + "\n";
+
+	snprintf(buffer, sizeof(buffer), "epip:=%s\n", inet_ntoa(msg.epIP));
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "epport:=%d\n", msg.epPort);
+	s = buffer;
+	total_s += s;
+
+	std::string allowed(reinterpret_cast<const char*>(msg.allowed_ips));
+	total_s = total_s + "allowedips:=" + allowed + "\n";
+
+#if 0
+	std::cout << "total_s --------> [" << total_s << "]" << std::endl;
+	std::cout << "length --------> [" << total_s.length() << "]" << std::endl;
+#endif
+
+	const char* buf_ptr = total_s.c_str();
+
 	try {
-		client.send(reinterpret_cast<unsigned char *>(&smsg), sizeof(smsg));
+		client.send(buf_ptr, total_s.length());
 	} catch (const std::runtime_error &error) {
 		spdlog::info("<<< Oops message sending is failed.");
 		return false;
 	}
+#else
+	try {
+		client.send(reinterpret_cast<const char *>(&smsg), sizeof(smsg));
+	} catch (const std::runtime_error &error) {
+		spdlog::info("<<< Oops message sending is failed.");
+		return false;
+	}
+#endif
+
 	return true;
 }
 
@@ -446,7 +523,7 @@ bool WgacServer::send_OK(const Client& client, const message_t& smsg) {
 
 bool WgacServer::send_NOK(const Client& client) {
 	spdlog::info("<<< NOK message sent to client.");
-	message_t smsg;
+	message_t smsg{};
 	return sendMessage(client, smsg);
 }
 

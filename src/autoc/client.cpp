@@ -79,7 +79,7 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 }
 
 #ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
-pipe_ret_t WgacClient::sendMsg(const char* msg, size_t size) {
+pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
 	if (numBytesSent < 0) { // send failed
