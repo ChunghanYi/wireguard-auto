@@ -54,7 +54,7 @@ public:
 	void init_wireguard();
 #endif
 	void setup_wireguard(const message_t& rmsg);
-	void remove_wireguard(const message_t& rmsg);
+	void remove_wireguard(const uint8_t* public_key);
 
 	bool shouldTerminate();
 	void setTerminate(bool flag);

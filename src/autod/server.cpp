@@ -186,11 +186,11 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 /**
  * Remove a wireguard configuration with the wg tool or vtysh.
  */
-void WgacServer::remove_wireguard(const message_t& rmsg) {
+void WgacServer::remove_wireguard(const uint8_t* public_key) {
 	char szInfo[256] = {};
 
 #ifdef VTYSH
-	sprintf(szInfo, "no wg peer %s", rmsg.public_key);
+	sprintf(szInfo, "no wg peer %s", public_key);
 
 	bool ok_flag = vtyshell::runCommand(szInfo);
 	if (ok_flag) {
@@ -204,7 +204,7 @@ void WgacServer::remove_wireguard(const message_t& rmsg) {
 #else
 	std::string error_text;
 	std::vector<std::string> output_list;
-	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", rmsg.public_key);
+	snprintf(szInfo, sizeof(szInfo), "wg set wg0 peer %s remove", public_key);
 
 	std::string cmd(szInfo);
 	bool exec_result = common::exec(cmd, output_list, error_text);
@@ -310,7 +310,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 					spdlog::info(">>> Binding address is removed.");
 				}
 #endif
-				remove_wireguard(rmsg);
+				remove_wireguard(rmsg.public_key);
 			} else {
 				send_NOK(client);
 			}

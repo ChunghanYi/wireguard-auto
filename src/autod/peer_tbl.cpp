@@ -221,7 +221,15 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
 		memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 		peer->vpnIP.s_addr = rmsg.vpnIP.s_addr;
 		peer->vpnNetmask.s_addr = rmsg.vpnNetmask.s_addr;
+
+		/* if peer's public key is changed, let's remove old wireguard peer entry info. */
+		//spdlog::info("peer->public_key: [{}].", peer->public_key);
+		if (memcmp(peer->public_key, rmsg.public_key, WG_KEY_LEN_BASE64)) {
+			if (strlen(reinterpret_cast<const char*>(peer->public_key)) == WG_KEY_LEN_BASE64-1) 
+				remove_wireguard(peer->public_key);
+		}
 		memcpy(peer->public_key, rmsg.public_key, WG_KEY_LEN_BASE64);
+
 		peer->epIP.s_addr = rmsg.epIP.s_addr;
 		peer->epPort = rmsg.epPort;
 		memcpy(peer->allowed_ips, rmsg.allowed_ips, 256);
