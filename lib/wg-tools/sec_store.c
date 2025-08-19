@@ -34,6 +34,8 @@ char server_publickey_file_path[256]  = "/etc/wgauto/server_publickey";
 char server_privatekey_file_path[256] = "/etc/wgauto/server_privatekey";
 #endif
 
+#define NO_FILE_ENCRYPTYION
+
 #ifndef NO_FILE_ENCRYPTYION
 const unsigned char __key[crypto_secretstream_xchacha20poly1305_KEYBYTES] = "-xchacha20poly1305-";
 

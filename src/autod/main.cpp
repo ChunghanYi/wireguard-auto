@@ -22,7 +22,7 @@ extern "C" {
 WgacServer wgacs;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.6.50" }; 
+const std::string versionString { "v0.6.70" }; 
 unsigned short wgac_port = 51822;
 
 
@@ -186,6 +186,9 @@ int main(int argc, char* argv[]) {
 		spdlog::debug("WireGuard public key => {}", pubkey_base64);
 		std::string s(pubkey_base64);
 		configurations.setstr("this_public_key", s);
+#ifndef VTYSH
+		wgacs.init_wireguard();
+#endif
 	}
 
 	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);

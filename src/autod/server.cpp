@@ -89,6 +89,57 @@ void WgacServer::clientEventHandler(const Client& client, ClientEvent event, con
 	}
 }
 
+#ifndef VTYSH
+void WgacServer::init_wireguard() {
+	char szInfo[512] = {};
+	std::string cmd;
+	std::string error_text;
+	std::vector<std::string> output_list;
+	bool exec_result;
+
+	//TBD: this command should be executed at booting script
+	snprintf(szInfo, sizeof(szInfo), "ip link add dev wg0 type wireguard > /dev/null 2>&1");
+	cmd = szInfo;
+	exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::debug("--- wireguard init [{}]", szInfo);
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+
+	snprintf(szInfo, sizeof(szInfo),
+		"ifconfig wg0 %s netmask %s > /dev/null 2>&1",
+		configurations.getstr("this_vpn_ip").c_str(), configurations.getstr("this_vpn_netmask").c_str());
+	cmd = szInfo;
+	exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::debug("--- wireguard init [{}]", szInfo);
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+
+	snprintf(szInfo, sizeof(szInfo), "ip link set up dev wg0");
+	cmd = szInfo;
+	exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::debug("--- wireguard init [{}]", szInfo);
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+
+	//Note: you must not encrypt the /etc/wgauto/privatekey file
+	snprintf(szInfo, sizeof(szInfo),
+		"wg set wg0 listen-port %d private-key /etc/wgauto/server_privatekey", configurations.getint("this_endpoint_port"));
+	cmd = szInfo;
+	exec_result = common::exec(cmd, output_list, error_text);
+	if (exec_result) {
+		spdlog::debug("--- wireguard init [{}]", szInfo);
+	} else {
+		spdlog::warn("{}", error_text);
+	}
+}
+#endif
+
 /**
  * Setup wireguard configuration with the wg tool or vtysh.
  */
@@ -215,7 +266,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::PONG;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				if (inet_pton(AF_INET,configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+				if (inet_pton(AF_INET, configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_ip) failed.");
 					send_NOK(client);
 				} else {
@@ -231,7 +282,11 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 							send_NOK(client);
 						} else {
 							smsg.epPort = configurations.getint("this_endpoint_port");
-							memcpy(smsg.allowed_ips, configurations.getstr("this_allowed_ips").c_str(), 256);
+							std::string str = configurations.getstr("this_allowed_ips");
+							int len = str.length();
+							memset(smsg.allowed_ips, 0, sizeof(smsg.allowed_ips));
+							memcpy(smsg.allowed_ips, str.c_str(), len);
+							spdlog::debug("--- This Allowed_IPS ----> {}", str);
 							send_PONG(client, smsg);
 							setup_wireguard(rmsg);
 						}

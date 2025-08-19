@@ -50,6 +50,9 @@ public:
 	bool send_OK(const Client& client, const message_t& smsg);
 	bool send_NOK(const Client& client);
 
+#ifndef VTYSH
+	void init_wireguard();
+#endif
 	void setup_wireguard(const message_t& rmsg);
 	void remove_wireguard(const message_t& rmsg);
 

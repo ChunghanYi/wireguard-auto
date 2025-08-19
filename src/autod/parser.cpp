@@ -1,5 +1,5 @@
 /*
- * Routines to parse message received from Go client
+ * Routines to parse message received from Go client(ex: wireguard windows)
  * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
@@ -12,7 +12,7 @@
 #include <map>
 #include <cstdint>
 #include <limits>
-#include <stdexcept> // for std::invalid_argument and std::out_of_range
+//#include <stdexcept> // for std::invalid_argument and std::out_of_range
 
 #include "inc/server.h"
 #include "inc/common.h"
@@ -141,13 +141,15 @@ bool parse_Go_message_string(const char* rbuf, message_t* rmsg) {
 			int len = msgFields[1].length();
 			const uint8_t* p = reinterpret_cast<const uint8_t*>(msgFields[1].c_str());
 			memset(rmsg->allowed_ips, 0, sizeof(rmsg->allowed_ips));
-			if (len < sizeof(rmsg->allowed_ips))
+			if (len < sizeof(rmsg->allowed_ips)) {
 				memcpy(rmsg->allowed_ips, p, len);
-			else
+				//spdlog::info("rmsg->allowed_ips ---> [{}]", rmsg->allowed_ips);
+			} else {
 				flag = false;
+			}
 
 		} else {
-			std::cout << "Unknown message field." << std::endl;
+			//spdlog::warn("Unknown message field [{}]", msgFields[0]);
 			flag = false;
 		}
 	}
