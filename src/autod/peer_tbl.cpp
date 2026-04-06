@@ -39,7 +39,7 @@ std::string trimstr(const std::string& s) {
 }
 
 void store_data_in_redis(std::string key_name, std::string value_details) {
-	redisReply* reply           = NULL;
+	redisReply* reply           = nullptr;
 	redisContext* redis_context = redis_init_connection();
 
 	if (!redis_context) {
@@ -66,7 +66,7 @@ void store_data_in_redis(std::string key_name, std::string value_details) {
 }
 
 void remove_data_in_redis(std::string key_name) {
-	redisReply* reply           = NULL;
+	redisReply* reply           = nullptr;
 	redisContext* redis_context = redis_init_connection();
 
 	if (!redis_context) {
@@ -93,7 +93,7 @@ void remove_data_in_redis(std::string key_name) {
 }
 
 void get_data_in_redis(std::string key_name) {
-	redisReply* reply           = NULL;
+	redisReply* reply           = nullptr;
 	redisContext* redis_context = redis_init_connection();
 
 	if (!redis_context) {
@@ -134,7 +134,7 @@ redisContext* redis_init_connection() {
 	redisContext* redis_context = redisConnectWithTimeout(redis_host.c_str(), redis_port, timeout);
 	if (redis_context->err) {
 		spdlog::error("Redis connection error: {}", redis_context->errstr);
-		return NULL;
+		return nullptr;
 	}
 
 	// We should check connection with ping because redis do not check connection
@@ -142,7 +142,7 @@ redisContext* redis_init_connection() {
 	if (reply) {
 		freeReplyObject(reply);
 	} else {
-		return NULL;
+		return nullptr;
 	}
 
 	return redis_context;
@@ -155,8 +155,8 @@ redisContext* redis_init_connection() {
 peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	auto it = peers.find(macstr);
-	if (it != peers.end()) {
+	auto it = _peers.find(macstr);
+	if (it != _peers.end()) {
 		return it->second;
 	} else {
 		return nullptr;
@@ -175,7 +175,7 @@ bool WgacServer::add_peer_table(const message_t& rmsg) {
 		if (peer) {
 			memset(peer, 0, sizeof(peer_table_t));
 			memcpy(peer->mac_addr, rmsg.mac_addr, 6);
-			peers.insert(std::make_pair(macstr, peer));
+			_peers.insert(std::make_pair(macstr, peer));
 
 #ifdef REDIS
 			char macbuf[32], vpnIP_str[16], vpnNetmask_str[16], xbuf[512];
@@ -270,12 +270,12 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
 bool WgacServer::remove_peer_table(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	auto it = peers.find(macstr);
-	if (it != peers.end()) {
+	auto it = _peers.find(macstr);
+	if (it != _peers.end()) {
 		if (it->second) {
 			delete it->second;
 		}
-		peers.erase(macstr);
+		_peers.erase(macstr);
 
 #ifdef REDIS
 		char macbuf[32];

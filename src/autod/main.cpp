@@ -1,6 +1,6 @@
 /*
  * Startup Codes for WireGuard AutoConnect Server
- * Copyright (c) 2025 Slowboot.net <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Slowboot.net <chunghan.yi@gmail.com>, All rights reserved.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -22,9 +22,9 @@ extern "C" {
 WgacServer wgacs;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.6.70" }; 
+const std::string versionString { "v0.6.75" }; 
 unsigned short wgac_port = 51822;
-
+////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
 	switch (sig) {

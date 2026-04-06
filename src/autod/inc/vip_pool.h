@@ -39,9 +39,9 @@ public:
 	std::vector<uint8_t> parse_ipv4_address(const std::string& ip_address);
 
 private:
-	std::vector<vip_entry_t> vip_pool_table;
-	struct pool_indexes vip_pool_index;
-	std::map<std::string, vip_entry_t*> vip_used_table;
+	std::vector<vip_entry_t> _vip_pool_table;
+	struct pool_indexes _vip_pool_index;
+	std::map<std::string, vip_entry_t*> _vip_used_table;
 };
 
 extern VipTable viptable;

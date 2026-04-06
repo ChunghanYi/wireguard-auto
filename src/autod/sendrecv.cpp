@@ -162,6 +162,17 @@ void Client::receiveTask() {
  * Send a reply message to client
  */
 void Client::publishEvent(ClientEvent clientEvent, const message_t& msg) {
+	/*
+	 * client.h:
+	 *   using client_event_handler_t = std::function<void(const Client&, ClientEvent, const message_t&)>;
+	 *   void setEventsHandler(const client_event_handler_t& eventHandler) { _eventHandlerCallback = eventHandler; }
+	 * ------------
+	 * server.cpp:
+	 *   newClient->setEventsHandler(std::bind(&WgacServer::clientEventHandler, this, _1, _2, _3));
+	 * ------------
+	 *
+	 * _eventHandlerCallback == clientEventHandler
+	 */
 	_eventHandlerCallback(*this, clientEvent, msg);
 }
 

@@ -68,6 +68,14 @@ public:
 	void printClients();
 
 private:
+	void handleClientMsg(const Client& client, const message_t& rmsg);
+	void handleClientDisconnected(const std::string&, const message_t& rmsg);
+	pipe_ret_t waitForClient(uint32_t timeout);
+	void clientEventHandler(const Client&, ClientEvent, const message_t& msg);
+	void removeDeadClients();
+	void terminateDeadClientsRemover();
+	static pipe_ret_t sendToClient(const Client& client, unsigned char* msg, size_t size);
+
 	FileDescriptor _sockfd;
 	struct sockaddr_in _serverAddress;
 	struct sockaddr_in _clientAddress;
@@ -77,15 +85,6 @@ private:
 	std::thread* _clientsRemoverThread = nullptr;
 	std::atomic<bool> _stopRemoveClientsTask;
 
-	std::map<std::string, peer_table_t*> peers;
+	std::map<std::string, peer_table_t*> _peers;
 	bool _flagTerminate;
-
-	void handleClientMsg(const Client& client, const message_t& rmsg);
-	void handleClientDisconnected(const std::string&, const message_t& rmsg);
-
-	pipe_ret_t waitForClient(uint32_t timeout);
-	void clientEventHandler(const Client&, ClientEvent, const message_t& msg);
-	void removeDeadClients();
-	void terminateDeadClientsRemover();
-	static pipe_ret_t sendToClient(const Client& client, unsigned char* msg, size_t size);
 };

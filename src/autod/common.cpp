@@ -88,7 +88,7 @@ bool exec(const std::string& cmd, std::vector<std::string>& output_list, std::st
 	char buffer[256];
 
 	while (!feof(pipe)) {
-		if (fgets(buffer, 256, pipe) != NULL) {
+		if (fgets(buffer, 256, pipe) != nullptr) {
 			size_t newbuflen = strlen(buffer);
 
 			// remove newline at the end

@@ -19,7 +19,7 @@
 #include "spdlog/spdlog.h"
 
 WgacServer::WgacServer() {
-	_clients.reserve(10);
+	_clients.reserve(128);
 	_stopRemoveClientsTask = false;
 	_flagTerminate = false;
 }
@@ -469,7 +469,7 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
 		return pipe_ret_t::failure("client not found");
 	}
 
-	const Client &client = *(*clientIter);
+	const Client& client = *(*clientIter);
 	return sendToClient(client, msg, size);
 }
 

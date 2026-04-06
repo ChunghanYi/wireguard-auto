@@ -56,16 +56,6 @@ public:
 	pipe_ret_t close();
 
 private:
-	FileDescriptor _sockfd;
-	std::atomic<bool> _isConnected;
-	std::atomic<bool> _isClosed;
-	struct sockaddr_in _server;
-	std::thread* _receiveTask = nullptr;
-
-	std::queue<message_t> _msgQueue;
-	Config _autoConf;
-	bool _flagTerminate = false;
-
 	void initializeSocket();
 	void startReceivingMessages();
 	void setAddress(const std::string& address, unsigned short port);
@@ -77,4 +67,14 @@ private:
 			struct sockaddr* dest_addr, socklen_t addrlen);
 	int send_local_message(ac_message_t* smsg);
 #endif
+
+	FileDescriptor _sockfd;
+	std::atomic<bool> _isConnected;
+	std::atomic<bool> _isClosed;
+	struct sockaddr_in _server;
+	std::thread* _receiveTask = nullptr;
+
+	std::queue<message_t> _msgQueue;
+	Config _autoConf;
+	bool _flagTerminate = false;
 };

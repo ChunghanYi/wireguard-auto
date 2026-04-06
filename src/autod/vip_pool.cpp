@@ -70,8 +70,8 @@ bool VipTable::init_vip_table() {
 	spdlog::debug("### begin/byte_array => {}.{}.{}.{}",
 			byte_array[0], byte_array[1], byte_array[2], byte_array[3]);
 #endif
-	vip_pool_index.first = static_cast<uint32_t>(byte_array[3]);
-	vip_pool_index.first -= 1;  /* not 10.1.0.0 but 10.1.0.1 */
+	_vip_pool_index.first = static_cast<uint32_t>(byte_array[3]);
+	_vip_pool_index.first -= 1;  /* not 10.1.0.0 but 10.1.0.1 */
 
 	ip_address = configurations.getstr("vpnip_range_end");
 	if (inet_pton(AF_INET, ip_address.c_str(), &(v.vpnIP)) <= 0) {
@@ -82,25 +82,25 @@ bool VipTable::init_vip_table() {
 	spdlog::debug("### end/byte_array => {}.{}.{}.{}",
 			byte_array[0], byte_array[1], byte_array[2], byte_array[3]);
 #endif
-	vip_pool_index.last = static_cast<uint32_t>(byte_array[3]);
-	vip_pool_index.last -= 1;
+	_vip_pool_index.last = static_cast<uint32_t>(byte_array[3]);
+	_vip_pool_index.last -= 1;
 
-	if (vip_pool_index.first > vip_pool_index.last) {
-		spdlog::warn("Oops, vip_pool_index.first > vip_pool_index.last !!!");
+	if (_vip_pool_index.first > _vip_pool_index.last) {
+		spdlog::warn("Oops, _vip_pool_index.first > _vip_pool_index.last !!!");
 		return false;
 	}
-	for (int i = vip_pool_index.first; i <= vip_pool_index.last; i++) {
+	for (int i = _vip_pool_index.first; i <= _vip_pool_index.last; i++) {
 		v.vpnIP = byteArrayToIpAddress(i+1, byte_array[2], byte_array[1], byte_array[0]);
 		v.used = false;
 		v.index = i;
-		vip_pool_table.push_back(v);
+		_vip_pool_table.push_back(v);
 #ifdef DEBUG
 		struct in_addr xIP;
 		xIP.s_addr = v.vpnIP;
 		spdlog::info("### i:{}, IP:{} pushed into vip pool table", i, inet_ntoa(xIP));
 #endif
 	}
-	vip_pool_index.current = vip_pool_index.first;
+	_vip_pool_index.current = _vip_pool_index.first;
 	return true;
 }
 
@@ -110,8 +110,8 @@ bool VipTable::init_vip_table() {
 struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	auto it = vip_used_table.find(macstr);
-	if (it != vip_used_table.end()) {
+	auto it = _vip_used_table.find(macstr);
+	if (it != _vip_used_table.end()) {
 #ifdef DEBUG
 		struct in_addr xIP;
 		xIP.s_addr = it->second->vpnIP;
@@ -135,23 +135,23 @@ vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
 		return nullptr;
 	}
 	while (1) {
-		if (vip_pool_index.current > vip_pool_index.last) {
+		if (_vip_pool_index.current > _vip_pool_index.last) {
 			delete tip;
-			vip_pool_index.current = 0;
+			_vip_pool_index.current = 0;
 			ok_flag = false;
-			spdlog::warn("Oops, vip_pool_index.current > vip_pool_index.last !!!");
+			spdlog::warn("Oops, _vip_pool_index.current > _vip_pool_index.last !!!");
 			break;
-		} else if (vip_pool_table[vip_pool_index.current].used == false) {
-			vip_pool_table[vip_pool_index.current].used = true;
-			tip->vpnIP = vip_pool_table[vip_pool_index.current].vpnIP;
-			tip->used = vip_pool_table[vip_pool_index.current].used;
-			tip->index = vip_pool_table[vip_pool_index.current].index;
-			vip_used_table.insert(std::make_pair(macstr, tip));
-			vip_pool_index.current++;
+		} else if (_vip_pool_table[_vip_pool_index.current].used == false) {
+			_vip_pool_table[_vip_pool_index.current].used = true;
+			tip->vpnIP = _vip_pool_table[_vip_pool_index.current].vpnIP;
+			tip->used = _vip_pool_table[_vip_pool_index.current].used;
+			tip->index = _vip_pool_table[_vip_pool_index.current].index;
+			_vip_used_table.insert(std::make_pair(macstr, tip));
+			_vip_pool_index.current++;
 			ok_flag = true;
 			break;
 		} else {
-			vip_pool_index.current++;
+			_vip_pool_index.current++;
 		}
 	}
 	
@@ -161,7 +161,7 @@ vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
 		xIP.s_addr = tip->vpnIP;
 		spdlog::info("### OK, ip address({}) added for mac address({}).", inet_ntoa(xIP), macstr);
 		spdlog::debug("### tip->vpnIP => {}, tip->used => {}, tip->index => {}",
-				vip_pool_index.current, inet_ntoa(xIP), tip->used, tip->index);
+				_vip_pool_index.current, inet_ntoa(xIP), tip->used, tip->index);
 #endif
 		return tip;
 	} else {
@@ -175,11 +175,11 @@ vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
 bool VipTable::remove_address_binding(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	auto it = vip_used_table.find(macstr);
-	if (it != vip_used_table.end()) {
+	auto it = _vip_used_table.find(macstr);
+	if (it != _vip_used_table.end()) {
 		if (it->second) {
-			if (it->second->index <= vip_pool_index.last)
-				vip_pool_table[it->second->index].used = false;
+			if (it->second->index <= _vip_pool_index.last)
+				_vip_pool_table[it->second->index].used = false;
 #ifdef DEBUG
 			struct in_addr xIP;
 			xIP.s_addr = it->second->vpnIP;
@@ -187,7 +187,7 @@ bool VipTable::remove_address_binding(const message_t& rmsg) {
 #endif
 			delete it->second;
 		}
-		vip_used_table.erase(macstr);
+		_vip_used_table.erase(macstr);
 		return true;
 	} else {
 		return false;

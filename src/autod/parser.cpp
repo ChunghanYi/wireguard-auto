@@ -33,10 +33,10 @@ bool stringToUint16(const std::string& str, uint16_t& result) {
 			// Handle out-of-range error
 			return false;
 		}
-	} catch (const std::invalid_argument& ) {
+	} catch (const std::invalid_argument&) {
 		// Handle invalid argument error
 		return false;
-	} catch (const std::out_of_range& ) {
+	} catch (const std::out_of_range&) {
 		// Handle out of range error
 		return false;
 	}
