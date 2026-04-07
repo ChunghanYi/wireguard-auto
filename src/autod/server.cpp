@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  * Copyright (c) 2019 Elhay Rauper
  *
  * SPDX-License-Identifier: MIT
@@ -33,7 +33,7 @@ void WgacServer::printClients() {
 	if (_clients.empty()) {
 		std::cout << "no connected clients\n";
 	}
-	for (const Client* client : _clients) {
+	for (const std::shared_ptr<Client> client : _clients) {
 		client->print();
 	}
 }
@@ -42,17 +42,19 @@ void WgacServer::printClients() {
  * Remove dead clients (disconnected) from clients vector periodically
  */
 void WgacServer::removeDeadClients() {
-	std::vector<Client*>::const_iterator clientToRemove;
+	std::vector<std::shared_ptr<Client>>::const_iterator clientToRemove;
 	while (!_stopRemoveClientsTask) {
 		{
 			std::lock_guard<std::mutex> lock(_clientsMtx);
 			do {
 				clientToRemove = std::find_if(_clients.begin(), _clients.end(),
-						[](Client *client) { return !client->isConnected(); });
+						[](auto client) { return !client->isConnected(); });
 
 				if (clientToRemove != _clients.end()) {
 					(*clientToRemove)->close();
-					delete *clientToRemove;
+					std::shared_ptr<Client> t = *clientToRemove;
+					t.reset();
+					const_cast<std::shared_ptr<Client>&>(*clientToRemove) = nullptr;
 					_clients.erase(clientToRemove);
 					spdlog::debug("### client is removed in the removeDeadClients thread.");
 				}
@@ -234,11 +236,11 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 					send_NOK(client);
 				} else {
 					/* vpn ip allocation(for clients) routine */
-					vip_entry_t* vip = viptable.search_address_binding(rmsg);
+					std::shared_ptr<vip_entry_t> vip = viptable.search_address_binding(rmsg);
 					if (vip) {
 						smsg.vpnIP.s_addr = vip->vpnIP;
 						std::string s = inet_ntoa(smsg.vpnNetmask);
-						spdlog::info("--- Preparing vpnIP({}/{}) for client.",
+						spdlog::info("--- Preparing an used vpnIP({}/{}) for client.",
 								inet_ntoa(smsg.vpnIP), s);
 						send_HELLO(client, smsg);
 					} else {
@@ -246,7 +248,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 						if (vip) {
 							smsg.vpnIP.s_addr = vip->vpnIP;
 							std::string s = inet_ntoa(smsg.vpnNetmask);
-							spdlog::info("--- Preparing vpnIP({}/{}) for client.",
+							spdlog::info("--- Preparing a new vpnIP({}/{}) for client.",
 									inet_ntoa(smsg.vpnIP), s);
 							send_HELLO(client, smsg);
 						} else {
@@ -399,7 +401,7 @@ std::string WgacServer::acceptClient(uint timeout) {
 		throw std::runtime_error(strerror(errno));
 	}
 
-	auto newClient = new Client(fileDescriptor);
+	std::shared_ptr<Client> newClient = std::make_shared<Client>(fileDescriptor);
 	newClient->setIp(inet_ntoa(_clientAddress.sin_addr));
 	using namespace std::placeholders;
 	newClient->setEventsHandler(std::bind(&WgacServer::clientEventHandler, this, _1, _2, _3));
@@ -435,7 +437,7 @@ pipe_ret_t WgacServer::waitForClient(uint32_t timeout) {
 pipe_ret_t WgacServer::sendToAllClients(unsigned char* msg, size_t size) {
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
-	for (const Client* client : _clients) {
+	for (const auto client : _clients) {
 		pipe_ret_t sendingResult = sendToClient(*client, msg, size);
 		if (!sendingResult.isSuccessful()) {
 			return sendingResult;
@@ -463,7 +465,7 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
 	std::lock_guard<std::mutex> lock(_clientsMtx);
 
 	const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
-			[&clientIP](Client *client) { return client->getIp() == clientIP; });
+			[&clientIP](auto client) { return client->getIp() == clientIP; });
 
 	if (clientIter == _clients.end()) {
 		return pipe_ret_t::failure("client not found");
@@ -615,7 +617,7 @@ pipe_ret_t WgacServer::close() {
 	{ // close clients
 		std::lock_guard<std::mutex> lock(_clientsMtx);
 
-		for (Client* client : _clients) {
+		for (auto client : _clients) {
 			try {
 				client->close();
 			} catch (const std::runtime_error& error) {

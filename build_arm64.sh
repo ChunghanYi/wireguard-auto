@@ -1,7 +1,9 @@
 #!/bin/sh
 
-# Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
-# SPDX-License-Identifier: MIT
+###############################################################
+# Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com> #
+# SPDX-License-Identifier: MIT                                #
+###############################################################
 
 #YOUR_LOCAL_PATH=XXX
 #TOOLCHAIN_PATH=$YOUR_LOCAL_PATH/friendlywrt23-rk3568/friendlywrt/staging_dir/toolchain-aarch64_generic_gcc-12.3.0_musl/bin
@@ -10,14 +12,14 @@ export PATH=$TOOLCHAIN_PATH:$PATH
 export STAGING_DIR=$TOOLCHAIN_PATH/..
 
 export CC=aarch64-openwrt-linux-musl-gcc
-export CPP=aarch64-openwrt-linux-musl-g++
+export CXX=aarch64-openwrt-linux-musl-g++
 export AR=aarch64-openwrt-linux-musl-ar
 export RANLIB=aarch64-openwrt-linux-musl-ranlib
 
 build_it()
 {
-	WGAC_PATH=$(pwd)
 	if [ $1 = "release" ]; then
+		CPPPATH=$(pwd)
 		if [ ! -d ./external/spdlog ]; then
 			mkdir -p external > /dev/null 2>&1
 			cd external
@@ -30,13 +32,13 @@ build_it()
 				..
 			make
 
-			if [ ! -d $WGAC_PATH/external/lib ]; then
-				mkdir $WGAC_PATH/external/lib > /dev/null 2>&1
+			if [ ! -d $CPPPATH/external/lib ]; then
+				mkdir $CPPPATH/external/lib > /dev/null 2>&1
 			fi
 			cp ./libspdlog.a ../../lib > /dev/null 2>&1
 			cd ..
 			cp -R ./include ../lib > /dev/null 2>&1
-			cd $WGAC_PATH
+			cd $CPPPATH
 		fi
 
 		if [ ! -d ./external/boost_1_88_0 ]; then
@@ -49,8 +51,7 @@ build_it()
 			cp ../misc/user-config.jam . > /dev/null 2>&1
 			./bootstrap.sh
 			./b2 toolset=gcc-arm64 target-os=linux --user-config=user-config.jam --without-context --without-coroutine --without-python -threading=multi
-
-			cd $WGAC_PATH
+			cd $CPPPATH
 		fi
 
 		if [ ! -d ./external/libsodium-stable ]; then
@@ -61,10 +62,10 @@ build_it()
 			tar xvzf libsodium-1.0.20-stable.tar.gz > /dev/null 2>&1
 			cd libsodium-stable
 			mkdir -p output
-			./configure --host=aarch64-openwrt-linux-musl --prefix=$(pwd)/output
-			make clean; make
-			make install
-			cd $WGAC_PATH
+            ./configure --host=aarch64-openwrt-linux-musl --prefix=$(pwd)/output
+            make clean; make
+            make install
+			cd $CPPPATH
         fi
 
 		if [ ! -d ./external/hiredis-1.3.0 ]; then
@@ -83,15 +84,15 @@ build_it()
 			cp -r libhiredis.so* ../../lib > /dev/null 2>&1
 			mkdir -p ../../lib/include/hiredis > /dev/null 2>&1
 			cp -r ../*.h ../../lib/include/hiredis > /dev/null 2>&1
-			cd $WGAC_PATH
+			cd $CPPPATH
 		fi
 
 		if [ -d ./lib/wg-tools ]; then
 			cd ./lib/wg-tools
 			make -f ./Makefile.arm64 clean
-			make -f ./Makefile.arm64 target=linux
-			cd $WGAC_PATH
-		fi
+            make -f ./Makefile.arm64 target=linux
+			cd $CPPPATH
+        fi
 
 		#for wg autoconnect client/server
 		if [ ! -d ./build ]; then
@@ -116,6 +117,7 @@ start_now()
 		echo "Usage: $0 release|clean"
 		exit 0
 	fi
+	cp ./CMakeLists.txt.arm64 ./CMakeLists.txt
 	build_it $1
 }
 

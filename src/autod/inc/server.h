@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  * Copyright (c) 2019 Elhay Rauper
  *
  * SPDX-License-Identifier: MIT
@@ -59,7 +59,7 @@ public:
 	bool shouldTerminate();
 	void setTerminate(bool flag);
 
-	peer_table_t* get_peer_table(const message_t& rmsg);
+	std::shared_ptr<peer_table_t> get_peer_table(const message_t& rmsg);
 	bool add_peer_table(const message_t& rmsg);
 	bool update_peer_table(const message_t& rmsg);
 	bool remove_peer_table(const message_t& rmsg);
@@ -80,11 +80,11 @@ private:
 	struct sockaddr_in _serverAddress;
 	struct sockaddr_in _clientAddress;
 	fd_set _fds;
-	std::vector<Client*> _clients;
+	std::vector<std::shared_ptr<Client>> _clients;
 	std::mutex _clientsMtx;
 	std::thread* _clientsRemoverThread = nullptr;
 	std::atomic<bool> _stopRemoveClientsTask;
 
-	std::map<std::string, peer_table_t*> _peers;
+	std::map<std::string, std::shared_ptr<peer_table_t>> _peers;
 	bool _flagTerminate;
 };

@@ -1,6 +1,6 @@
 /*
  * wireguard autoconnect protocol: message send/recv routines
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -18,6 +18,7 @@
 #include "inc/configuration.h"
 #include "inc/pipe_ret_t.h"
 #include "inc/common.h"
+#include "inc/cidr.h"
 #include "spdlog/spdlog.h"
 
 /**
@@ -231,9 +232,39 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	char szInfo[512] = {};
 	char vpnip_str[32] = {};
 	char epip_str[32] = {};
+	int ret = 0;
 
 	snprintf(vpnip_str, sizeof(vpnip_str), "%s", inet_ntoa(rmsg->vpnIP));
 	snprintf(epip_str, sizeof(epip_str), "%s", inet_ntoa(rmsg->epIP));
+
+	//Let's configure the VPN IP assigned by the server.
+	struct in_addr vpnIP, vpnNetmask;
+	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(vpnIP)) != 1) {
+		spdlog::warn("inet_pton(this_vpn_ip) failed.");
+	}
+	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_netmask").c_str(), &(vpnNetmask)) != 1) {
+		spdlog::warn("inet_pton(this_vpn_netmask) failed.");
+	}
+
+	int cidr = 0;
+	for (int i=0; i<CIDR_TBL_NUM; i++) {
+		if (!strcmp(cidr_tbl[i], inet_ntoa(vpnNetmask))) {
+			cidr = i;
+			break;
+		}
+	}
+
+	sprintf(szInfo, "ip address add dev wg0 %s/%d", inet_ntoa(vpnIP), cidr);
+	ret = system(szInfo);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
+	}
+
+	sprintf(szInfo, "ip link set up dev wg0");
+	ret = system(szInfo);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
+	}
 
 #ifdef VTYSH
 	snprintf(szInfo, sizeof(szInfo),
@@ -251,13 +282,9 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	spdlog::info("--- OK, wireguard setup is complete.");
 #else
 #ifdef WIREGUARD_C_DAEMON
-
 	send_ac_vpn_message(rmsg);
-
 	send_start_vpn_message(AUTOCONN::START_VPN);
-
 	spdlog::info("--- OK, wireguard setup is complete.");
-
 #else /* WIREGUARD KERNEL */
 	std::string error_text;
 	std::vector<std::string> output_list;

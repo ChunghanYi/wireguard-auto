@@ -1,6 +1,6 @@
 /*
- * vpn IP table management routines
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * VPN IP table management routines
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -107,7 +107,7 @@ bool VipTable::init_vip_table() {
 /**
  * Get an entry from vip-used-table(map table)
  */
-struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
+std::shared_ptr<vip_entry_t> VipTable::search_address_binding(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = _vip_used_table.find(macstr);
@@ -126,17 +126,18 @@ struct _vip_entry* VipTable::search_address_binding(const message_t& rmsg) {
 /**
  * Add an entry to vip-used-table(map table) and update vip-pool-table(vector table)
  */
-vip_entry_t* VipTable::add_address_binding(const message_t& rmsg) {
+std::shared_ptr<vip_entry_t> VipTable::add_address_binding(const message_t& rmsg) {
 	bool ok_flag {false};
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	vip_entry_t* tip = new vip_entry_t;
-	if (!tip) {
+	std::shared_ptr<vip_entry_t> tip = std::make_shared<vip_entry_t>();
+	if (tip == nullptr) {
 		return nullptr;
 	}
+
 	while (1) {
 		if (_vip_pool_index.current > _vip_pool_index.last) {
-			delete tip;
+			tip.reset();  //the object is deleted here and tip becomes null.
 			_vip_pool_index.current = 0;
 			ok_flag = false;
 			spdlog::warn("Oops, _vip_pool_index.current > _vip_pool_index.last !!!");
@@ -185,9 +186,13 @@ bool VipTable::remove_address_binding(const message_t& rmsg) {
 			xIP.s_addr = it->second->vpnIP;
 			spdlog::info("### OK, ip address({}) removed for mac address({}).", inet_ntoa(xIP), macstr);
 #endif
-			delete it->second;
+#if 0 /* TBD - DONT_REMOVE */
+			(it->second).reset();
+#endif
 		}
+#if 0 /* TBD - DONT_REMOVE */
 		_vip_used_table.erase(macstr);
+#endif
 		return true;
 	} else {
 		return false;

@@ -11,7 +11,7 @@ AR = $(CROSS)ar rv
 RANLIB = $(CROSS)ranlib
 
 CLEANFILES	= $(SLIB_OBJ) $(SLIB_REALNAME)
-MY_CFLAGS	= $(CFLAGS) -g -O2 #-D_BSD_SOURCE -D__FAVOR_BSD -D_SVID_SOURCE
+MY_CFLAGS	= $(CFLAGS) -g -O2 -I../../external/libsodium-stable/output/include #-D_BSD_SOURCE -D__FAVOR_BSD -D_SVID_SOURCE
 SLIB_CFLAGS	= -fPIC
 
 all: slib lib

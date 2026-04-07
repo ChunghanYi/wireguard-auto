@@ -1,6 +1,6 @@
 /*
  * Peer table routines
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -152,7 +152,7 @@ redisContext* redis_init_connection() {
 /**
  * Get a peer(remote client) from the rclient table
  */
-peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
+std::shared_ptr<peer_table_t> WgacServer::get_peer_table(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
 	auto it = _peers.find(macstr);
@@ -169,11 +169,10 @@ peer_table_t* WgacServer::get_peer_table(const message_t& rmsg) {
 bool WgacServer::add_peer_table(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	peer_table_t* peer = get_peer_table(rmsg);
+	std::shared_ptr<peer_table_t> peer = get_peer_table(rmsg);
 	if (peer == nullptr) {
-		peer_table_t *peer = new peer_table_t;
+		std::shared_ptr<peer_table_t> peer = std::make_shared<peer_table_t>();
 		if (peer) {
-			memset(peer, 0, sizeof(peer_table_t));
 			memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 			_peers.insert(std::make_pair(macstr, peer));
 
@@ -216,7 +215,7 @@ bool WgacServer::add_peer_table(const message_t& rmsg) {
 bool WgacServer::update_peer_table(const message_t& rmsg) {
 	std::string macstr = common::get_mac_addr_string(rmsg);
 
-	peer_table_t* peer = get_peer_table(rmsg);
+	std::shared_ptr<peer_table_t> peer = get_peer_table(rmsg);
 	if (peer) {
 		memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 		peer->vpnIP.s_addr = rmsg.vpnIP.s_addr;
@@ -273,7 +272,7 @@ bool WgacServer::remove_peer_table(const message_t& rmsg) {
 	auto it = _peers.find(macstr);
 	if (it != _peers.end()) {
 		if (it->second) {
-			delete it->second;
+			(it->second).reset();
 		}
 		_peers.erase(macstr);
 

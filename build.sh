@@ -1,7 +1,8 @@
 #!/bin/sh
-
-# Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
-# SPDX-License-Identifier: MIT
+###############################################################
+# Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com> #
+# SPDX-License-Identifier: MIT                                #
+###############################################################
 
 build_it()
 {
@@ -99,6 +100,7 @@ start_now()
 		echo "Usage: $0 release|clean"
 		exit 0
 	fi
+	cp ./CMakeLists.txt.x86_64 ./CMakeLists.txt
 	build_it $1
 }
 

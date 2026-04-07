@@ -1,6 +1,6 @@
 /*
  * Startup Codes for WireGuard AutoConnect Client
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -17,7 +17,7 @@ extern "C" {
 }
 
 WgacClient wgacc;
-const std::string versionString { "v0.4.00" };
+const std::string versionString { "v0.7.00" };
 std::string server_ip;
 unsigned short wgac_port = 51822;
 
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 
 		if (vm.count("version")) {
 			std::cout << "wg_autoc Version: " << versionString << "\n";
-			std::cout << "Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
+			std::cout << "Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
 			exit(EXIT_SUCCESS);
 		}
 

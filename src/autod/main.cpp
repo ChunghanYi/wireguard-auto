@@ -1,6 +1,6 @@
 /*
  * Startup Codes for WireGuard AutoConnect Server
- * Copyright (c) 2025-2026 Slowboot.net <chunghan.yi@gmail.com>, All rights reserved.
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>, All rights reserved.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -19,10 +19,10 @@ extern "C" {
 	bool initialize_curve25519(int mode, char *pubkey);
 }
 
-WgacServer wgacs;
+std::unique_ptr<WgacServer> wgacsPtr = nullptr;
 Config configurations;
 VipTable viptable;
-const std::string versionString { "v0.6.75" }; 
+const std::string versionString { "v0.7.00" }; 
 unsigned short wgac_port = 51822;
 ////////////////////////////////////////////////////////////
 
@@ -32,8 +32,10 @@ static void sig_handler(int sig) {
 		case SIGTERM:
 		case SIGQUIT:
 			spdlog::info(">>> Received signal {}, exiting...", sig);
-			wgacs.setTerminate(true);
-			wgacs.close();
+			if (wgacsPtr) {
+				wgacsPtr->setTerminate(true);
+				wgacsPtr->close();
+			}
 			exit(EXIT_SUCCESS);
 			break;
 		default:
@@ -85,7 +87,7 @@ void redirect_fds() {
 
 void acceptClients() {
 	try {
-		std::string clientIP = wgacs.acceptClient(0);
+		std::string clientIP = wgacsPtr->acceptClient(0);
 	} catch (const std::runtime_error &error) {
 		spdlog::error("Accepting client failed: {}", error.what());
 	}
@@ -115,7 +117,7 @@ int main(int argc, char* argv[]) {
 
 		if (vm.count("version")) {
 			std::cout << "wg_autod Version: " << versionString << std::endl;
-			std::cout << "Copyright (c) 2025 Slowboot.net/Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
+			std::cout << "Copyright (c) 2025-2026 Slowboot.net/Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
 			exit(EXIT_SUCCESS);
 		}
 
@@ -165,6 +167,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	wgacsPtr = std::make_unique<WgacServer>();
+
 	::signal(SIGINT, sig_handler);
 	::signal(SIGQUIT, sig_handler);
 	::signal(SIGTERM, sig_handler);
@@ -187,22 +191,23 @@ int main(int argc, char* argv[]) {
 		std::string s(pubkey_base64);
 		configurations.setstr("this_public_key", s);
 #ifndef VTYSH
-		wgacs.init_wireguard();
+		wgacsPtr->init_wireguard();
 #endif
 	}
 
 	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);
-	pipe_ret_t startRet = wgacs.start(wgac_port);
+	pipe_ret_t startRet = wgacsPtr->start(wgac_port);
 	if (!startRet.isSuccessful()) {
+		wgacsPtr->close();
 		spdlog::error("Server setup failed: {}", startRet.message());
 		return EXIT_FAILURE;
 	}
 
-	while (!wgacs.shouldTerminate()) {
+	while (!wgacsPtr->shouldTerminate()) {
 		acceptClients();
 	}
 
-	wgacs.close();
+	wgacsPtr->close();
 	spdlog::info("The wg_autod is stopped.");
 
 	return EXIT_SUCCESS;

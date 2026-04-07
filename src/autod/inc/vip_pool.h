@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
 
 #pragma once
 
+#include <memory>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "configuration.h"
@@ -29,8 +30,8 @@ public:
 	~VipTable() {}
 
 	bool init_vip_table();
-	vip_entry_t* search_address_binding(const message_t& rmsg);
-	vip_entry_t* add_address_binding(const message_t& rmsg);
+	std::shared_ptr<vip_entry_t> search_address_binding(const message_t& rmsg);
+	std::shared_ptr<vip_entry_t> add_address_binding(const message_t& rmsg);
 	bool update_address_binding(const message_t& rmsg);
 	bool remove_address_binding(const message_t& rmsg);
 
@@ -41,7 +42,7 @@ public:
 private:
 	std::vector<vip_entry_t> _vip_pool_table;
 	struct pool_indexes _vip_pool_index;
-	std::map<std::string, vip_entry_t*> _vip_used_table;
+	std::map<std::string, std::shared_ptr<vip_entry_t>> _vip_used_table;
 };
 
 extern VipTable viptable;
