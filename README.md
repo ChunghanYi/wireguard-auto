@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.6.00). 😎
+It's currently in development(v0.7.00). 😎
 
 ```
 
@@ -24,6 +24,7 @@ $ ls -l
 -rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
 -rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
 
+<if needed>
 $ sudo cp ./wg_autoc /usr/local/sbin
 $ sudo cp ./wg_autod /usr/local/sbin
 $ sudo mkdir -p /etc/wgauto
@@ -44,6 +45,8 @@ $ sudo service redis-server status
 $ sudo vi /etc/wgauto/server.conf
   -> Edit this file.
 debug_mode = 1
+
+server_port = 51822
 
 #this part ----------------------------------------------------------
 this_vpn_ip = 10.1.1.254
@@ -108,7 +111,7 @@ Allowed options:
   --server arg          Specify the server ip address
   --config arg          Set path to custom configuration file
 
-$ sudo /usr/local/sbin/wg_autoc --foreground --server 127.0.0.1 --config /etc/wgauto/client.conf
+$ sudo /usr/local/sbin/wg_autoc --foreground --server 192.168.8.182 --config /etc/wgauto/client.conf
 [2025-01-22 13:09:06.870] [info] Client connected successfully
 [2025-01-22 13:09:06.870] [info] >>> HELLO message sent to server.
 [2025-01-22 13:09:07.370] [info] <<< HELLO message received.
