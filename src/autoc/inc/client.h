@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  * Copyright (c) 2019 Elhay Rauper
  *
  * SPDX-License-Identifier: MIT
@@ -50,7 +50,9 @@ public:
 	int send_start_vpn_message(enum AUTOCONN type);
 #endif
 
-	Config& getConf() { return _autoConf; };
+	Config& getConfig() { return _config; };
+	std::string& getServerIp() { return _server_ip; };
+	void setServerIp(const std::string Ip) { _server_ip = Ip; };
 
 	bool isConnected() const { return _isConnected; }
 	pipe_ret_t close();
@@ -75,6 +77,7 @@ private:
 	std::thread* _receiveTask = nullptr;
 
 	std::queue<message_t> _msgQueue;
-	Config _autoConf;
+	Config _config;
+	std::string _server_ip;
 	bool _flagTerminate = false;
 };

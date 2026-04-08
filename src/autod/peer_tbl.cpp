@@ -20,8 +20,8 @@
 
 //#define DEBUG
 #ifdef REDIS
-unsigned int redis_port = 6379;
-std::string redis_host  = "127.0.0.1";
+const unsigned int redis_port { 6379 };
+const std::string redis_host  { "127.0.0.1" };
 
 redisContext* redis_init_connection();
 void store_data_in_redis(std::string key_name, std::string value_details);

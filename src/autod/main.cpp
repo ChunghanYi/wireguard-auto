@@ -21,8 +21,9 @@ extern "C" {
 }
 
 ////////////////////////////////////////////////////////////
-std::unique_ptr<WgacServer> wgacsPtr = nullptr;
-const std::string versionString { "v0.7.00" }; 
+std::unique_ptr<WgacServer> wgacsPtr;
+const std::string prog_name { "wg_autod" };
+const std::string versionString { "v0.7.10" }; 
 ////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
@@ -42,7 +43,7 @@ static void sig_handler(int sig) {
 	}
 }
 
-int do_fork() {
+static int do_fork() {
 	int status = 0;
 
 	switch (fork()) {
@@ -62,7 +63,7 @@ int do_fork() {
 	return status;
 }
 
-void redirect_fds() {
+static void redirect_fds() {
 	// Close stdin, stdout and stderr
 	close(0);
 	close(1);
@@ -95,7 +96,7 @@ void acceptClients() {
 int main(int argc, char* argv[]) {
 	bool daemonize {false};
 	namespace po = boost::program_options;
-	unsigned short wgac_port {51822};
+	unsigned short wgac_server_port {51822};
 
 	//Creates a smart pointer for an instance of the server class.
 	wgacsPtr = std::make_unique<WgacServer>();
@@ -123,8 +124,8 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (vm.count("version")) {
-			std::cout << "wg_autod Version: " << versionString << std::endl;
-			std::cout << "Copyright (c) 2025-2026 Slowboot.net/Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
+			std::cout << prog_name << " Version: " << versionString << std::endl;
+			std::cout << "Copyright (c) 2025-2026 Slowboot<chunghan.yi@gmail.com>" << "\n";
 			exit(EXIT_SUCCESS);
 		}
 
@@ -202,10 +203,10 @@ int main(int argc, char* argv[]) {
 
 	if (wgacsPtr->getConfig().getint("server_port") >= 1024 &&
 		wgacsPtr->getConfig().getint("server_port") < 65536) {
-		wgac_port = wgacsPtr->getConfig().getint("server_port");	
+		wgac_server_port = wgacsPtr->getConfig().getint("server_port");	
 	}
-	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);
-	pipe_ret_t startRet = wgacsPtr->start(wgac_port);
+	spdlog::info("Starting the {}(tcp port {})...", prog_name, wgac_server_port);
+	pipe_ret_t startRet = wgacsPtr->start(wgac_server_port);
 	if (!startRet.isSuccessful()) {
 		wgacsPtr->close();
 		spdlog::error("Server setup failed: {}", startRet.message());
@@ -217,7 +218,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	wgacsPtr->close();
-	spdlog::info("The wg_autod is stopped.");
+	spdlog::info("The {} is stopped.", prog_name);
 
 	return EXIT_SUCCESS;
 }

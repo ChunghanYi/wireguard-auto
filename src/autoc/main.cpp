@@ -16,26 +16,27 @@ extern "C" {
 	bool initialize_curve25519(int mode, char *pubkey);
 }
 
-WgacClient wgacc;
-const std::string versionString { "v0.7.00" };
-std::string server_ip;
-unsigned short wgac_port = 51822;
+////////////////////////////////////////////////////////////
+std::unique_ptr<WgacClient> wgaccPtr;
+const std::string prog_name { "wg_autoc" };
+const std::string versionString { "v0.7.10" };
+////////////////////////////////////////////////////////////
 
-void sig_exit(int s) {
-	wgacc.send_bye_message();
+static void sig_exit(int s) {
+	wgaccPtr->send_bye_message();
 	sleep(1);
 
-	spdlog::info("Closing wg_autoc...");
-	pipe_ret_t finishRet = wgacc.close();
+	spdlog::info("Closing {}...", prog_name);
+	pipe_ret_t finishRet = wgaccPtr->close();
 	if (finishRet.isSuccessful()) {
 		spdlog::info("Client closed.");
 	} else {
-		spdlog::error("Failed to close wg_autoc.");
+		spdlog::error("Failed to close {}.", prog_name);
 	}
 	exit(EXIT_SUCCESS);
 }
 
-int do_fork() {
+static int do_fork() {
 	int status = 0;
 
 	switch (fork()) {
@@ -55,7 +56,7 @@ int do_fork() {
 	return status;
 }
 
-void redirect_fds() {
+static void redirect_fds() {
 	// Close stdin, stdout and stderr
 	close(0);
 	close(1);
@@ -80,6 +81,14 @@ void redirect_fds() {
 int main(int argc, char* argv[]) {
 	bool daemonize = false;
 	namespace po = boost::program_options;
+	unsigned short wgac_server_port {51822};
+
+	//Creates a smart pointer for an instance of the client class.
+	wgaccPtr = std::make_unique<WgacClient>();
+	if (wgaccPtr == nullptr) {
+		spdlog::error("Failed to create a smart pointer for WgacClient class.");
+		return EXIT_FAILURE;
+	}
 
 	try {
 		po::options_description desc("Allowed options");
@@ -101,8 +110,8 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (vm.count("version")) {
-			std::cout << "wg_autoc Version: " << versionString << "\n";
-			std::cout << "Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>" << "\n";
+			std::cout << prog_name << " Version: " << versionString << "\n";
+			std::cout << "Copyright (c) 2025-2026 Slowboot <chunghan.yi@gmail.com>" << "\n";
 			exit(EXIT_SUCCESS);
 		}
 
@@ -111,14 +120,14 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (vm.count("server")) {
-			server_ip = vm["server"].as<std::string>();
+			wgaccPtr->setServerIp(vm["server"].as<std::string>());
 		} else {
 			spdlog::error("Server ip addres is not specified.");
 			return EXIT_FAILURE;
 		}
 
 		if (vm.count("config")) {
-			wgacc.getConf().parse(vm["config"].as<std::string>());
+			wgaccPtr->getConfig().parse(vm["config"].as<std::string>());
 		} else {
 			spdlog::error("Configuration file is not specified.");
 			return EXIT_FAILURE;
@@ -171,13 +180,17 @@ int main(int argc, char* argv[]) {
 	} else {
 		spdlog::debug("WireGuard public key => {}", pubkey_base64);
 		std::string s(pubkey_base64);
-		wgacc.getConf().setstr("this_public_key", s);
+		wgaccPtr->getConfig().setstr("this_public_key", s);
 	}
 
 	// connect client to an open server
 	bool connected = false;
 	while (!connected) {
-		pipe_ret_t connectRet = wgacc.connectTo(server_ip, wgac_port);
+		if (wgaccPtr->getConfig().getint("server_port") >= 1024 &&
+			wgaccPtr->getConfig().getint("server_port") < 65536) {
+			wgac_server_port = wgaccPtr->getConfig().getint("server_port");
+		}
+		pipe_ret_t connectRet = wgaccPtr->connectTo(wgaccPtr->getServerIp(), wgac_server_port);
 		connected = connectRet.isSuccessful();
 		if (connected) {
 			spdlog::info("Client connected successfully");
@@ -189,7 +202,7 @@ int main(int argc, char* argv[]) {
 	};
 
 	// main: PING-PONG protocol
-	wgacc.start();
+	wgaccPtr->start();
 
 	return 0;
 }

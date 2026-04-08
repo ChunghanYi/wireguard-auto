@@ -61,14 +61,14 @@ bool WgacClient::send_hello_message() {
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
 
-	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-	if (inet_pton(AF_INET, _autoConf.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
 		spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 		return false;
 	}
-	smsg.epPort = _autoConf.getint("this_endpoint_port");
-	memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
+	smsg.epPort = _config.getint("this_endpoint_port");
+	memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -89,11 +89,11 @@ bool WgacClient::send_hello_message() {
 			char s[16];
 			snprintf(s, sizeof(s), "%s", inet_ntoa(rmsg.vpnIP));
 			std::string value1(s);
-			_autoConf.setstr("this_vpn_ip", value1);
+			_config.setstr("this_vpn_ip", value1);
 
 			sprintf(s, "%s", inet_ntoa(rmsg.vpnNetmask));
 			std::string value2(s);
-			_autoConf.setstr("this_vpn_netmask", value2);
+			_config.setstr("this_vpn_netmask", value2);
 
 			spdlog::info("--- vpnIP({}/{}) received from server.", value1, value2);
 			return true;
@@ -116,23 +116,23 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 	init_smsg(&smsg, AUTOCONN::PING, 0, 0);
 
 	//from saved vpn ip !!!
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_ip) failed.");
 		return false;
 	}
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 		return false;
 	}
 
-	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-	if (inet_pton(AF_INET, _autoConf.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
 		spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 		return false;
 	}
-	smsg.epPort = _autoConf.getint("this_endpoint_port");
-	memcpy(smsg.allowed_ips, _autoConf.getstr("this_allowed_ips").c_str(), 256);
+	smsg.epPort = _config.getint("this_endpoint_port");
+	memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -166,15 +166,15 @@ bool WgacClient::send_bye_message() {
 
 	init_smsg(&smsg, AUTOCONN::BYE, 0, 0);
 
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_ip) failed.");
 		return false;
 	}
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 		return false;
 	}
-	memcpy(smsg.public_key, _autoConf.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -239,10 +239,10 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 
 	//Let's configure the VPN IP assigned by the server.
 	struct in_addr vpnIP, vpnNetmask;
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(vpnIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_ip").c_str(), &(vpnIP)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_ip) failed.");
 	}
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_netmask").c_str(), &(vpnNetmask)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_netmask").c_str(), &(vpnNetmask)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 	}
 
@@ -377,7 +377,7 @@ ssize_t WgacClient::xsendto(int sockfd, const void* buf, size_t len, int flags, 
 	return r;
 }
 
-unsigned short vpn_event_port = 7177;
+unsigned short vpn_event_port { 7177 };
 
 /* wg_autoc --> wireguard-c daemon */
 int WgacClient::send_local_message(ac_message_t* smsg) {
@@ -411,7 +411,7 @@ void WgacClient::send_ac_vpn_message(message_t* rmsg) {
 	ac_message_t xmsg;
 	memcpy(&xmsg, rmsg, sizeof(message_t));
 	xmsg.m.type = AUTOCONN::SEND_VPN_INFORMATION;
-	if (inet_pton(AF_INET, _autoConf.getstr("this_vpn_ip").c_str(), &(xmsg.clientIP)) != 1) {
+	if (inet_pton(AF_INET, _config.getstr("this_vpn_ip").c_str(), &(xmsg.clientIP)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_ip) failed.");
 		return;
 	}
