@@ -111,7 +111,8 @@ void WgacServer::init_wireguard() {
 
 	snprintf(szInfo, sizeof(szInfo),
 		"ifconfig wg0 %s netmask %s > /dev/null 2>&1",
-		configurations.getstr("this_vpn_ip").c_str(), configurations.getstr("this_vpn_netmask").c_str());
+		wgacsPtr->getConfig().getstr("this_vpn_ip").c_str(),
+		wgacsPtr->getConfig().getstr("this_vpn_netmask").c_str());
 	cmd = szInfo;
 	exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
@@ -131,7 +132,8 @@ void WgacServer::init_wireguard() {
 
 	//Note: you must not encrypt the /etc/wgauto/privatekey file
 	snprintf(szInfo, sizeof(szInfo),
-		"wg set wg0 listen-port %d private-key /etc/wgauto/server_privatekey", configurations.getint("this_endpoint_port"));
+		"wg set wg0 listen-port %d private-key /etc/wgauto/server_privatekey",
+		wgacsPtr->getConfig().getint("this_endpoint_port"));
 	cmd = szInfo;
 	exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
@@ -231,12 +233,13 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				smsg.type = AUTOCONN::HELLO;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
-				if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
+				if (inet_pton(AF_INET,
+					wgacsPtr->getConfig().getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 					send_NOK(client);
 				} else {
 					/* vpn ip allocation(for clients) routine */
-					std::shared_ptr<vip_entry_t> vip = viptable.search_address_binding(rmsg);
+					std::shared_ptr<vip_entry_t> vip = getVipTable().search_address_binding(rmsg);
 					if (vip) {
 						smsg.vpnIP.s_addr = vip->vpnIP;
 						std::string s = inet_ntoa(smsg.vpnNetmask);
@@ -244,7 +247,7 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 								inet_ntoa(smsg.vpnIP), s);
 						send_HELLO(client, smsg);
 					} else {
-						vip = viptable.add_address_binding(rmsg);
+						vip = getVipTable().add_address_binding(rmsg);
 						if (vip) {
 							smsg.vpnIP.s_addr = vip->vpnIP;
 							std::string s = inet_ntoa(smsg.vpnNetmask);
@@ -268,23 +271,25 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::PONG;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				if (inet_pton(AF_INET, configurations.getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
+				if (inet_pton(AF_INET,
+					wgacsPtr->getConfig().getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_ip) failed.");
 					send_NOK(client);
 				} else {
-					if (inet_pton(AF_INET, configurations.getstr("this_vpn_netmask").c_str(),
-								&(smsg.vpnNetmask)) != 1) {
+					if (inet_pton(AF_INET,
+						wgacsPtr->getConfig().getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
 						spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 						send_NOK(client);
 					} else {
-						memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-						if (inet_pton(AF_INET, configurations.getstr("this_endpoint_ip").c_str(),
-									&(smsg.epIP)) != 1) {
+						memcpy(smsg.public_key,
+								wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+						if (inet_pton(AF_INET,
+							wgacsPtr->getConfig().getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
 							spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 							send_NOK(client);
 						} else {
-							smsg.epPort = configurations.getint("this_endpoint_port");
-							std::string str = configurations.getstr("this_allowed_ips");
+							smsg.epPort = wgacsPtr->getConfig().getint("this_endpoint_port");
+							std::string str = wgacsPtr->getConfig().getstr("this_allowed_ips");
 							int len = str.length();
 							memset(smsg.allowed_ips, 0, sizeof(smsg.allowed_ips));
 							memcpy(smsg.allowed_ips, str.c_str(), len);
@@ -305,13 +310,12 @@ void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::BYE;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				memcpy(smsg.public_key, configurations.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+				memcpy(smsg.public_key,
+						wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 				send_BYE(client, smsg);
-#if 1 /* TBD */
-				if (viptable.remove_address_binding(rmsg)) {
+				if (getVipTable().remove_address_binding(rmsg)) {
 					spdlog::info(">>> Binding address is removed.");
 				}
-#endif
 				remove_wireguard(rmsg.public_key);
 			} else {
 				send_NOK(client);

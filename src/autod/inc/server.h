@@ -35,6 +35,7 @@ class WgacServer {
 public:
 	WgacServer();
 	~WgacServer();
+
 	pipe_ret_t start(unsigned short port, int maxNumOfClients = 32, bool removeDeadClientsAutomatically = true);
 	void initializeSocket();
 	void bindAddress(int port);
@@ -64,6 +65,9 @@ public:
 	bool update_peer_table(const message_t& rmsg);
 	bool remove_peer_table(const message_t& rmsg);
 
+	VipTable& getVipTable() { return _viptable; }
+	Config& getConfig() { return _config; }
+
 	pipe_ret_t close();
 	void printClients();
 
@@ -86,5 +90,10 @@ private:
 	std::atomic<bool> _stopRemoveClientsTask;
 
 	std::map<std::string, std::shared_ptr<peer_table_t>> _peers;
+	VipTable _viptable;
+	Config _config;
+
 	bool _flagTerminate;
 };
+
+extern std::unique_ptr<WgacServer> wgacsPtr;

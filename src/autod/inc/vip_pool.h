@@ -29,7 +29,7 @@ public:
 	VipTable() {}
 	~VipTable() {}
 
-	bool init_vip_table();
+	bool initialize_viptable();
 	std::shared_ptr<vip_entry_t> search_address_binding(const message_t& rmsg);
 	std::shared_ptr<vip_entry_t> add_address_binding(const message_t& rmsg);
 	bool update_address_binding(const message_t& rmsg);
@@ -44,5 +44,3 @@ private:
 	struct pool_indexes _vip_pool_index;
 	std::map<std::string, std::shared_ptr<vip_entry_t>> _vip_used_table;
 };
-
-extern VipTable viptable;

@@ -1,6 +1,7 @@
 /*
  * Startup Codes for WireGuard AutoConnect Server
- * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>, All rights reserved.
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
+ * All rights reserved.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -19,11 +20,9 @@ extern "C" {
 	bool initialize_curve25519(int mode, char *pubkey);
 }
 
+////////////////////////////////////////////////////////////
 std::unique_ptr<WgacServer> wgacsPtr = nullptr;
-Config configurations;
-VipTable viptable;
 const std::string versionString { "v0.7.00" }; 
-unsigned short wgac_port = 51822;
 ////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
@@ -94,8 +93,16 @@ void acceptClients() {
 }
 
 int main(int argc, char* argv[]) {
-	bool daemonize = false;
+	bool daemonize {false};
 	namespace po = boost::program_options;
+	unsigned short wgac_port {51822};
+
+	//Creates a smart pointer for an instance of the server class.
+	wgacsPtr = std::make_unique<WgacServer>();
+	if (wgacsPtr == nullptr) {
+		spdlog::error("Failed to create a smart pointer for WgacServer class.");
+		return EXIT_FAILURE;
+	}
 
 	try {
 		po::options_description desc("Allowed options");
@@ -126,7 +133,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (vm.count("config")) {
-			if (configurations.parse(vm["config"].as<std::string>()) == false) {
+			if (wgacsPtr->getConfig().parse(vm["config"].as<std::string>()) == false) {
 				return EXIT_FAILURE;
 			}
 		} else {
@@ -167,14 +174,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	wgacsPtr = std::make_unique<WgacServer>();
-
 	::signal(SIGINT, sig_handler);
 	::signal(SIGQUIT, sig_handler);
 	::signal(SIGTERM, sig_handler);
 
 	// Initialize VPN IP table
-	viptable.init_vip_table();
+	wgacsPtr->getVipTable().initialize_viptable();
 
 	// Initialize vtysh map table
 	vtyshell::initializeVtyshMap();
@@ -189,12 +194,16 @@ int main(int argc, char* argv[]) {
 	} else {
 		spdlog::debug("WireGuard public key => {}", pubkey_base64);
 		std::string s(pubkey_base64);
-		configurations.setstr("this_public_key", s);
+		wgacsPtr->getConfig().setstr("this_public_key", s);
 #ifndef VTYSH
 		wgacsPtr->init_wireguard();
 #endif
 	}
 
+	if (wgacsPtr->getConfig().getint("server_port") >= 1024 &&
+		wgacsPtr->getConfig().getint("server_port") < 65536) {
+		wgac_port = wgacsPtr->getConfig().getint("server_port");	
+	}
 	spdlog::info("Starting the wg_autod(tcp port {})...", wgac_port);
 	pipe_ret_t startRet = wgacsPtr->start(wgac_port);
 	if (!startRet.isSuccessful()) {

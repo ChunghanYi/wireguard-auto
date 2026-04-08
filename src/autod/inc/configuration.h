@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -25,5 +25,3 @@ public:
 private:
 	std::map<std::string, std::string> _config_tbl;
 };
-
-extern Config configurations;

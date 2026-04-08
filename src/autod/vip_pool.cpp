@@ -59,9 +59,9 @@ std::vector<uint8_t> VipTable::parse_ipv4_address(const std::string& ip_address)
 /**
  * Initialize vip-pool-table(vector table)
  */
-bool VipTable::init_vip_table() {
+bool VipTable::initialize_viptable() {
 	vip_entry_t v {};
-	std::string ip_address = configurations.getstr("vpnip_range_begin");
+	std::string ip_address = wgacsPtr->getConfig().getstr("vpnip_range_begin");
 	if (inet_pton(AF_INET, ip_address.c_str(), &(v.vpnIP)) <= 0) {
 		return false;
 	}
@@ -73,7 +73,7 @@ bool VipTable::init_vip_table() {
 	_vip_pool_index.first = static_cast<uint32_t>(byte_array[3]);
 	_vip_pool_index.first -= 1;  /* not 10.1.0.0 but 10.1.0.1 */
 
-	ip_address = configurations.getstr("vpnip_range_end");
+	ip_address = wgacsPtr->getConfig().getstr("vpnip_range_end");
 	if (inet_pton(AF_INET, ip_address.c_str(), &(v.vpnIP)) <= 0) {
 		return false;
 	}
