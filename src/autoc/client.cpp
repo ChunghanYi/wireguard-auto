@@ -11,15 +11,13 @@
 #include "inc/common.h"
 #include "inc/sodium_ae.h"
 
-namespace sodium_ae
-{
-	extern std::vector<unsigned char> client_secret_key;
-	extern std::vector<unsigned char> server_public_key;
-}
+//#define DEBUG
 
 WgacClient::WgacClient() {
 	_isConnected = false;
 	_isClosed = true;
+	_prepare_secret_key.resize(32, 0); /* client private key for PREPARE stage */
+	_prepare_public_key.resize(32, 0);  /* server public key for PREPARE stage */
 }
 
 WgacClient::~WgacClient() {
@@ -124,21 +122,40 @@ void WgacClient::receiveTask() {
 		}
 	}
 }
-#else /* AE method */
+#else /* AE(Authenticated Encryption) method that has <PREPARE> stage additionally. */
 pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
-	std::vector<unsigned char> original_message(msg, msg + size);
-	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
-			sodium_ae::server_public_key, sodium_ae::client_secret_key);
+	if (!isPrepared()) { /* PREPARE stage */
+#ifdef DEBUG
+		std::cout << "(WgacClient::sendMsg) isPrepared() is false !!!\n";
+#endif
+		const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
-	const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+		if (numBytesSent < 0) { // send failed
+			return pipe_ret_t::failure(strerror(errno));
+		}
+		if (numBytesSent < size) { // not all bytes were sent
+			char errorMsg[100];
+			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
+			return pipe_ret_t::failure(errorMsg);
+		}
+	} else { /* PING-PONG protocol stage */
+#ifdef DEBUG
+		std::cout << "(WgacClient::sendMsg) isPrepared() is true !!!\n";
+#endif
+		std::vector<unsigned char> original_message(msg, msg + size);
+		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+				getPreparePublicKey(), getPrepareSecretKey());
 
-	if (numBytesSent < 0) { // send failed
-		return pipe_ret_t::failure(strerror(errno));
-	}
-	if (numBytesSent < encrypted_message.size()) { // not all bytes were sent
-		char errorMsg[100];
-		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
-		return pipe_ret_t::failure(errorMsg);
+		const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+
+		if (numBytesSent < 0) { // send failed
+			return pipe_ret_t::failure(strerror(errno));
+		}
+		if (numBytesSent < encrypted_message.size()) { // not all bytes were sent
+			char errorMsg[100];
+			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
+			return pipe_ret_t::failure(errorMsg);
+		}
 	}
 	return pipe_ret_t::success();
 }
@@ -156,27 +173,52 @@ void WgacClient::receiveTask() {
 			continue;
 		}
 
-		message_t rmsg;
-		unsigned char rxbuffer[ENC_MESSAGE_SIZE];
-		const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
+		if (!isPrepared()) { /* PREPARE stage */
+#ifdef DEBUG
+			std::cout << "(WgacClient::receiveTask) isPrepared() is false !!!\n";
+#endif
+			message_t rmsg;
+			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
 
-		if (numOfBytesReceived < 1) {
-			std::string errorMsg;
-			if (numOfBytesReceived == 0) { //server closed connection
-				errorMsg = "Server closed connection";
+			if (numOfBytesReceived < 1) {
+				std::string errorMsg;
+				if (numOfBytesReceived == 0) { //server closed connection
+					errorMsg = "Server closed connection";
+				} else {
+					errorMsg = strerror(errno);
+				}
+				_isConnected = false;
+				return;
 			} else {
-				errorMsg = strerror(errno);
+				/* Let's put this message to <message queue>. */
+				_msgQueue.push(rmsg);
 			}
-			_isConnected = false;
-			return;
-		} else {
-			std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
-			std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-					encrypted_message, sodium_ae::server_public_key, sodium_ae::client_secret_key);
-			memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+		} else { /* PING-PONG protocol stage */
+#ifdef DEBUG
+			std::cout << "(WgacClient::receiveTask) isPrepared() is true !!!\n";
+#endif
+			message_t rmsg;
+			unsigned char rxbuffer[ENC_MESSAGE_SIZE];
+			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
-			/* Let's put this message to <message queue>. */
-			_msgQueue.push(rmsg);
+			if (numOfBytesReceived < 1) {
+				std::string errorMsg;
+				if (numOfBytesReceived == 0) { //server closed connection
+					errorMsg = "Server closed connection";
+				} else {
+					errorMsg = strerror(errno);
+				}
+				_isConnected = false;
+				return;
+			} else {
+				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
+				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
+						encrypted_message, getPreparePublicKey(), getPrepareSecretKey());
+				memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+
+				/* Let's put this message to <message queue>. */
+				_msgQueue.push(rmsg);
+			}
 		}
 	}
 }

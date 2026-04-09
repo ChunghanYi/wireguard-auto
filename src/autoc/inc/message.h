@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -10,7 +10,8 @@
 #include <netinet/in.h>
 
 enum class AUTOCONN {
-	HELLO                        = 0,
+	PREPARE                      = 99,  //No encryption stage
+	HELLO                        = 0,   //encryption stage
 	PING                         = 1,
 	PONG                         = 2,
 	OK                           = 3,

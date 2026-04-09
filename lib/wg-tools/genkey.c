@@ -73,7 +73,7 @@ static inline bool __attribute__((__warn_unused_result__)) get_random_bytes(uint
 }
 #endif
 
-int genkey_main(int argc, const char *argv[], int mode)
+int genkey_main(int argc, const char *argv[])
 {
 	uint8_t key[WG_KEY_LEN];
 	char base64[WG_KEY_LEN_BASE64];
@@ -97,7 +97,7 @@ int genkey_main(int argc, const char *argv[], int mode)
 	key_to_base64(base64, key);
 	//puts(base64);
 
-	// Let's store the key pair values in a secure storage(virtual puf).
-	store_curve25519_secret(mode, base64);
+	// Let's store the key pair values in a secure storage.
+	store_curve25519_secret(base64);
 	return 0;
 }

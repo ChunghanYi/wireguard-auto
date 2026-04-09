@@ -52,7 +52,7 @@ int pubkey_main(int argc, const char *argv[])
 }
 
 /* Derive a public key from a private key. */
-int get_pubkey(int mode, char *b64key)
+int get_pubkey(char *b64key)
 {
 	uint8_t key[WG_KEY_LEN] __attribute__((aligned(sizeof(uintptr_t))));
 	char base64[WG_KEY_LEN_BASE64];
@@ -71,7 +71,7 @@ int get_pubkey(int mode, char *b64key)
 	/* b64key <- public key */
 	memcpy(b64key, base64, WG_KEY_LEN_BASE64 - 1);
 
-	store_curve25519_public(mode, base64);
+	store_curve25519_public(base64);
 
 	return 0;
 }

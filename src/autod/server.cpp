@@ -22,6 +22,7 @@ WgacServer::WgacServer() {
 	_clients.reserve(128);
 	_stopRemoveClientsTask = false;
 	_flagTerminate = false;
+	_prepare_secret_key.resize(32, 0); /* server private key for PREPARE stage */
 }
 
 WgacServer::~WgacServer() {
@@ -78,7 +79,7 @@ void WgacServer::terminateDeadClientsRemover() {
  * Handle different client events. Subscriber callbacks should be short and fast, and must not
  * call other server functions to avoid deadlock
  */
-void WgacServer::clientEventHandler(const Client& client, ClientEvent event, const message_t& msg) {
+void WgacServer::clientEventHandler(Client& client, ClientEvent event, const message_t& msg) {
 	switch (event) {
 		case ClientEvent::DISCONNECTED: {
 			handleClientDisconnected(client.getIp(), msg);
@@ -130,9 +131,9 @@ void WgacServer::init_wireguard() {
 		spdlog::warn("{}", error_text);
 	}
 
-	//Note: you must not encrypt the /etc/wgauto/privatekey file
+	//Note: you must not encrypt the /qrwg/config/privatekey file
 	snprintf(szInfo, sizeof(szInfo),
-		"wg set wg0 listen-port %d private-key /etc/wgauto/server_privatekey",
+		"wg set wg0 listen-port %d private-key /qrwg/config/privatekey",
 		wgacsPtr->getConfig().getint("this_endpoint_port"));
 	cmd = szInfo;
 	exec_result = common::exec(cmd, output_list, error_text);
@@ -224,12 +225,33 @@ void WgacServer::remove_wireguard(const uint8_t* public_key) {
 /**
  * Handle messages coming from each client(= peer)
  */
-void WgacServer::handleClientMsg(const Client& client, const message_t& rmsg) {
+void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 	switch (rmsg.type) {
+		case AUTOCONN::PREPARE:
+			spdlog::info(">>> PREPARE message received.");
+			{
+				uint8_t key[WG_KEY_LEN];
+				if (!key_from_base64(key, reinterpret_cast<const char*>(rmsg.public_key))) {
+					spdlog::warn("Public key is not the correct length or format");
+					send_NOK(client);
+					client.setPrepared(false);
+				} else {
+					client.setPreparePublicKey(key);
+
+					message_t smsg {};
+					smsg.type = AUTOCONN::PREPARE;
+					memcpy(smsg.public_key,
+							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+					send_PREPARE(client, smsg);
+					client.setPrepared(true);
+				}
+			}
+			break;
+
 		case AUTOCONN::HELLO:
 			spdlog::info(">>> HELLO message received.");
 			if (add_peer_table(rmsg)) {
-				message_t smsg{};  /* initialize to 0 */
+				message_t smsg{};
 				smsg.type = AUTOCONN::HELLO;
 				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
@@ -570,6 +592,11 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 #endif
 
 	return true;
+}
+
+bool WgacServer::send_PREPARE(const Client& client, const message_t& smsg) {
+	spdlog::info("<<< PREPARE message sent to client.");
+	return sendMessage(client, smsg);
 }
 
 bool WgacServer::send_HELLO(const Client& client, const message_t& smsg) {

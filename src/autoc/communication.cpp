@@ -54,6 +54,52 @@ static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, u
 }
 
 /**
+ * Send a PREPARE message and receive an PREPARE/NOK message
+ */
+bool WgacClient::send_prepare_message() {
+	message_t smsg;
+	init_smsg(&smsg, AUTOCONN::PREPARE, 0, 0);
+	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+
+	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
+	if (!sendRet.isSuccessful()) {
+		spdlog::debug(">>> Failed to send message.");
+		return false;
+	} else {
+		spdlog::info(">>> PREPARE message sent to server.");
+	}
+
+	usleep(500000);
+
+	//Receive the PREPARE message from server
+	message_t rmsg;
+	if (handle_message_queue(&rmsg)) {
+		if (rmsg.type == AUTOCONN::PREPARE) {
+			spdlog::info("<<< PREPARE message received.");
+
+			uint8_t key[WG_KEY_LEN];
+			if (!key_from_base64(key, reinterpret_cast<const char*>(rmsg.public_key))) {
+				spdlog::info("Public key is not the correct length or format");
+				setPrepared(false);
+				return false;
+			}
+			setPreparePublicKey(key); /* server public key */
+			setPrepared(true);
+			spdlog::info("--- Preparation key received from server.");
+			return true;
+		} else {
+			spdlog::info("<<< Oops, PREPARE message NOT received.");
+			setPrepared(false);
+			return false;
+		}
+	} else {
+		spdlog::info("<<< No message has arrived.");
+		setPrepared(false);
+		return false;
+	}
+}
+
+/**
  * Send a HELLO message and receive an HELLO/NOK message
  */
 bool WgacClient::send_hello_message() {
@@ -345,10 +391,12 @@ void WgacClient::start() {
 	message_t rmsg;
 
 	while (1) {
-		if (send_hello_message()) {
-			if (send_ping_message(&rmsg)) {
-				setup_wireguard(&rmsg);	
-				break;
+		if (send_prepare_message()) {  /* <PREPARE> stage */
+			if (send_hello_message()) {  /* PING-PING protocol stage */
+				if (send_ping_message(&rmsg)) {
+					setup_wireguard(&rmsg);	 /* wireguard setup stage */
+					break;
+				}
 			}
 		}
 		sleep(10);

@@ -19,6 +19,7 @@
 #include <hiredis/hiredis.h>
 
 //#define DEBUG
+
 #ifdef REDIS
 const unsigned int redis_port { 6379 };
 const std::string redis_host  { "127.0.0.1" };

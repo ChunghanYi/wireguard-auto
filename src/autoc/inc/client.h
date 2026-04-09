@@ -38,6 +38,7 @@ public:
 
 	void start();
 	bool handle_message_queue(message_t* pmsg);
+	bool send_prepare_message();
 	bool send_hello_message();
 	bool send_ping_message(message_t* pmsg);
 	bool send_bye_message();
@@ -56,6 +57,18 @@ public:
 
 	bool isConnected() const { return _isConnected; }
 	pipe_ret_t close();
+
+	/* for <PREPARE> stage */
+	bool isPrepared() const { return _isPrepared; }
+	void setPrepared(bool flag) { _isPrepared = flag; }
+	const std::vector<unsigned char>& getPrepareSecretKey() const { return _prepare_secret_key; }
+	void setPrepareSecretKey(uint8_t* key) {
+		_prepare_secret_key.assign(key, key + WG_KEY_LEN);
+	}
+	const std::vector<unsigned char>& getPreparePublicKey() const { return _prepare_public_key; }
+	void setPreparePublicKey(uint8_t* key) {
+		_prepare_public_key.assign(key, key + WG_KEY_LEN);
+	}
 
 private:
 	void initializeSocket();
@@ -76,8 +89,18 @@ private:
 	struct sockaddr_in _server;
 	std::thread* _receiveTask = nullptr;
 
+	/* for <PREPARE> stage */
+	std::atomic<bool> _isPrepared = false;
+	std::vector<unsigned char> _prepare_secret_key;  /* client private key */
+	std::vector<unsigned char> _prepare_public_key;  /* server public key */
+
 	std::queue<message_t> _msgQueue;
 	Config _config;
 	std::string _server_ip;
 	bool _flagTerminate = false;
 };
+
+extern "C" {
+	bool initialize_curve25519(char *pubkey, char *privkey);
+	bool key_from_base64(uint8_t key[WG_KEY_LEN], const char *base64);
+}

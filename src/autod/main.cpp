@@ -16,14 +16,11 @@
 #include "inc/sodium_ae.h"
 #include "spdlog/spdlog.h"
 #include <boost/program_options.hpp>
-extern "C" {
-	bool initialize_curve25519(int mode, char *pubkey);
-}
 
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacServer> wgacsPtr;
 const std::string prog_name { "wg_autod" };
-const std::string versionString { "v0.7.10" }; 
+const std::string versionString { "v0.8.00" }; 
 ////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
@@ -189,13 +186,22 @@ int main(int argc, char* argv[]) {
 	sodium_ae::initialize_sodium();
 
 	// Initialize curve25519 keypair(private/public keys)
-	char pubkey_base64[WG_KEY_LEN_BASE64] = {};
-	if (!initialize_curve25519(1, pubkey_base64)) {
+	char pubkey_base64[WG_KEY_LEN_BASE64] {};
+	char privkey_base64[WG_KEY_LEN_BASE64] {};
+	if (!initialize_curve25519(pubkey_base64, privkey_base64)) {
 		spdlog::warn("Failed to get curve25519 keypair.");
 	} else {
 		spdlog::debug("WireGuard public key => {}", pubkey_base64);
 		std::string s(pubkey_base64);
 		wgacsPtr->getConfig().setstr("this_public_key", s);
+
+		uint8_t key[WG_KEY_LEN];
+		if (!key_from_base64(key, reinterpret_cast<const char*>(privkey_base64))) {
+			spdlog::warn("Private key is not the correct length or format");
+			return EXIT_FAILURE;
+		}
+		wgacsPtr->setPrepareSecretKey(key); /* for PREPARE stage */
+
 #ifndef VTYSH
 		wgacsPtr->init_wireguard();
 #endif

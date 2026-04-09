@@ -22,17 +22,9 @@
 #include "sec_store.h"
 
 const char *GEN_KEY[1] = { "genkey" };
-#if 0
-char client_publickey_file_path[256]  = "../config/client_publickey";   //TBD
-char client_privatekey_file_path[256] = "../config/client_privatekey";
-char server_publickey_file_path[256]  = "../config/server_publickey";
-char server_privatekey_file_path[256] = "../config/server_privatekey";
-#else
-char client_publickey_file_path[256]  = "/etc/wgauto/client_publickey";
-char client_privatekey_file_path[256] = "/etc/wgauto/client_privatekey";
-char server_publickey_file_path[256]  = "/etc/wgauto/server_publickey";
-char server_privatekey_file_path[256] = "/etc/wgauto/server_privatekey";
-#endif
+/* let's create a directory /qrwg/config under the system(Ubuntu 22.04 or OpenWrt) */
+char publickey_file_path[256]  = "/qrwg/config/publickey";
+char privatekey_file_path[256] = "/qrwg/config/privatekey";
 
 #define NO_FILE_ENCRYPTYION
 
@@ -120,15 +112,11 @@ static int decrypt_buffer(char *target_buffer, const char *source_file)
 #endif
 
 // Let's store the public key value in a secure storage.
-void store_curve25519_public(int mode, char *base64)
+void store_curve25519_public(char *base64)
 {
 	FILE *fp = NULL;
 
-	if (mode == 0) {
-		fp = fopen(client_publickey_file_path, "w");
-	} else {
-		fp = fopen(server_publickey_file_path, "w");
-	}
+	fp = fopen(publickey_file_path, "w");
 	if (fp) {
 		fprintf(fp, "%s", base64);
 		fclose(fp);
@@ -136,25 +124,15 @@ void store_curve25519_public(int mode, char *base64)
 }
 
 // Let's store the private key value in a secure storage.
-int store_curve25519_secret(int mode, char *base64)
+int store_curve25519_secret(char *base64)
 {
 #ifndef NO_FILE_ENCRYPTYION
-	if (mode == 0) {
-		if (encrypt_buffer(client_privatekey_file_path, base64) != 0) {
-			return 0;
-		}
-	} else {
-		if (encrypt_buffer(server_privatekey_file_path, base64) != 0) {
-			return 0;
-		}
+	if (encrypt_buffer(privatekey_file_path, base64) != 0) {
+		return 0;
 	}
 #else
 	FILE *fp = NULL;
-	if (mode == 0) {
-		fp = fopen(client_privatekey_file_path, "w");
-	} else {
-		fp = fopen(server_privatekey_file_path, "w");
-	}
+	fp = fopen(privatekey_file_path, "w");
 	if (fp) {
 		fprintf(fp, "%s", base64);
 		fclose(fp);
@@ -164,27 +142,17 @@ int store_curve25519_secret(int mode, char *base64)
 }
 
 // Let's get the private key from the secure storage.
-int get_privatekey(int mode, char *private)
+int get_privatekey(char *private)
 {
 	memset(private, 0, WG_KEY_LEN_BASE64);
 #ifndef NO_FILE_ENCRYPTYION
-	if (mode == 0) {
-		if (decrypt_buffer(private, client_privatekey_file_path) != 0) {
-			return 0;
-		}
-	} else {
-		if (decrypt_buffer(private, server_privatekey_file_path) != 0) {
-			return 0;
-		}
+	if (decrypt_buffer(private, privatekey_file_path) != 0) {
+		return 0;
 	}
 #else
 	FILE *fp = NULL;
 	char xbuf[WG_KEY_LEN_BASE64+1];
-	if (mode == 0) {
-		fp = fopen(client_privatekey_file_path, "r");
-	} else {
-		fp = fopen(server_privatekey_file_path, "r");
-	}
+	fp = fopen(privatekey_file_path, "r");
 	if (fp) {
 		if (fgets(xbuf, sizeof(xbuf), fp)) {
 			if (xbuf[strlen(xbuf)-1] == '\n' || xbuf[strlen(xbuf)-1] == '\r')
@@ -198,32 +166,26 @@ int get_privatekey(int mode, char *private)
 	return 1;
 }
 
-bool initialize_curve25519(int mode, char *pubkey)
+bool initialize_curve25519(char *pubkey, char *privkey)
 {
 	char base64[WG_KEY_LEN_BASE64];
 
 	/* If the corresponding file does not exist, an ECC curve25519 private key is generated. */
-	if (mode == 0) {
-		if (access(client_privatekey_file_path, F_OK) != 0) {
-			genkey_main(1, GEN_KEY, mode);
-			//fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
-			sleep(1);
-		}
-	} else {
-		if (access(server_privatekey_file_path, F_OK) != 0) {
-			genkey_main(1, GEN_KEY, mode);
-			//fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
-			sleep(1);
-		}
+	if (access(privatekey_file_path, F_OK) != 0) {
+		genkey_main(1, GEN_KEY);
+		//fprintf(stderr, "A new private key(curve25519) has been made and saved.\n");
+		sleep(1);
 	}
 
-	if (!get_privatekey(mode, base64)) { /* curve25519 private key */
+	if (!get_privatekey(base64)) { /* curve25519 private key */
 		fprintf(stderr, "Oops, failed to get a privatekey. :(\n");
 		exit(1);
 	}
+	memcpy(privkey, base64, WG_KEY_LEN_BASE64 - 1);
+	privkey[WG_KEY_LEN_BASE64 - 1] = '\0';
 
 	/* Derive a public key from a private key. */
-	if (!get_pubkey(mode, base64)) {
+	if (!get_pubkey(base64)) {
 		memcpy(pubkey, base64, WG_KEY_LEN_BASE64 - 1);
 		pubkey[WG_KEY_LEN_BASE64 - 1] = '\0';
 		return true;

@@ -44,7 +44,14 @@ public:
 	pipe_ret_t sendToAllClients(unsigned char* msg, size_t size);
 	pipe_ret_t sendToClient(const std::string& clientIP, unsigned char* msg, size_t size);
 
+	/* for <PREPARE> stage */
+	const std::vector<unsigned char>& getPrepareSecretKey() const { return _prepare_secret_key; }
+	void setPrepareSecretKey(uint8_t* key) {
+		_prepare_secret_key.assign(key, key + WG_KEY_LEN);
+	}
+
 	bool sendMessage(const Client& client, const message_t& smsg);
+	bool send_PREPARE(const Client& client, const message_t& smsg);
 	bool send_HELLO(const Client& client, const message_t& smsg);
 	bool send_PONG(const Client& client, const message_t& smsg);
 	bool send_BYE(const Client& client, const message_t& smsg);
@@ -72,10 +79,10 @@ public:
 	void printClients();
 
 private:
-	void handleClientMsg(const Client& client, const message_t& rmsg);
+	void handleClientMsg(Client& client, const message_t& rmsg);
 	void handleClientDisconnected(const std::string&, const message_t& rmsg);
 	pipe_ret_t waitForClient(uint32_t timeout);
-	void clientEventHandler(const Client&, ClientEvent, const message_t& msg);
+	void clientEventHandler(Client&, ClientEvent, const message_t& msg);
 	void removeDeadClients();
 	void terminateDeadClientsRemover();
 	static pipe_ret_t sendToClient(const Client& client, unsigned char* msg, size_t size);
@@ -89,6 +96,9 @@ private:
 	std::thread* _clientsRemoverThread = nullptr;
 	std::atomic<bool> _stopRemoveClientsTask;
 
+	/* for <PREPARE> stage */
+	std::vector<unsigned char> _prepare_secret_key;
+
 	std::map<std::string, std::shared_ptr<peer_table_t>> _peers;
 	VipTable _viptable;
 	Config _config;
@@ -97,3 +107,7 @@ private:
 };
 
 extern std::unique_ptr<WgacServer> wgacsPtr;
+extern "C" {
+	bool initialize_curve25519(char *pubkey, char *privkey);
+	bool key_from_base64(uint8_t key[WG_KEY_LEN], const char *base64);
+}

@@ -2,13 +2,14 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.7.00). 😎
+It's currently in development(v0.8.00). 😎
 
 ```
 
 ## How to build
 ```
 <Ubuntu 22.04 LTS>
+-------------------
 $ ./build.sh
  -> for x86_64 machine
 ...
@@ -24,12 +25,29 @@ $ ls -l
 -rwxrwxr-x 1 chyi chyi 1874848  1월 22 14:52 wg_autoc
 -rwxrwxr-x 1 chyi chyi 2018128  1월 22 14:51 wg_autod
 
-<if needed>
-$ sudo cp ./wg_autoc /usr/local/sbin
-$ sudo cp ./wg_autod /usr/local/sbin
-$ sudo mkdir -p /etc/wgauto
-$ sudo cp ../config/client.conf /etc/wgauto
-$ sudo cp ../config/server.conf /etc/wgauto
+<Some preliminary preparations - client side>
+----------------------------------------------
+$ sudo mkdir -p /qrwg/config
+$ sudo cp ../config/client.conf /qrwg/config
+$ cd /qrwg/config
+$ sudo wg genkey | tee ./privatekey | wg pubkey > ./publickey
+$ edit /qrwg/config/client.conf using /qrwg/config/publickey
+  (Match the public key values)
+..
+this_public_key = "6L9YraonVAB90h+dxhKEumHUQh5wjqSmemOs1PGvgwE="
+..
+
+<Some preliminary preparations - server side>
+----------------------------------------------
+$ sudo mkdir -p /qrwg/config
+$ sudo cp ../config/server.conf /qrwg/config
+$ cd /qrwg/config
+$ sudo wg genkey | tee ./privatekey | wg pubkey > ./publickey
+$ edit /qrwg/config/server.conf using /qrwg/config/publickey
+  (Match the public key values)
+..
+this_public_key = "Fuj6ODu9nLkCtxzueHh3AB4CRakbX6PkzbFW8T0smAA="
+..
 
 ```
 
@@ -42,8 +60,8 @@ $ sudo service redis-server status
   -> install redis-server at first.
   -> The redis will store wireguard configuration information for the client.
 
-$ sudo vi /etc/wgauto/server.conf
-  -> Edit this file.
+$ sudo vi /qrwg/config/server.conf
+  -> Edit this file if needed.
 debug_mode = 1
 
 server_port = 51822
@@ -61,7 +79,7 @@ vpnip_range_begin = 10.1.0.1
 vpnip_range_end = 10.1.0.253
 ~
 
-$ sudo /usr/local/sbin/wg_autod --help
+$ sudo ./wg_autod --help
 Allowed options:
   --help                Print help message
   --version             Show version
@@ -69,7 +87,7 @@ Allowed options:
   --foreground          Run it in foreground
   --config arg          Set path to custom configuration file
 
-$ sudo /usr/local/sbin/wg_autod --foreground --config /etc/wgauto/server.conf
+$ sudo ./wg_autod --foreground --config /qrwg/config/server.conf
 [2025-01-22 13:08:33.373] [info] Starting the wg_autod(tcp port 51822)...
 [2025-01-22 13:08:40.755] [info] >>> HELLO message received.
 [2025-01-22 13:08:40.755] [info] --- Preparing vpnIP(10.1.0.2/255.255.255.0) for client.
@@ -89,8 +107,8 @@ $ redis-cli
 
 <client side>
 --------------
-$ sudo vi /etc/wgauto/client.conf
-  -> Edit this file.
+$ sudo vi /qrwg/config/client.conf
+  -> Edit this file if needed.
 debug_mode = 1
 
 #this part ----------------------------------------------------------
@@ -102,7 +120,7 @@ this_endpoint_port = 51820
 this_allowed_ips = "10.1.1.0/24,192.168.0.0/16"
 ~
 
-$ sudo /usr/local/sbin/wg_autoc --help
+$ sudo ./wg_autoc --help
 Allowed options:
   --help                Print help message
   --version             Show version
@@ -111,7 +129,7 @@ Allowed options:
   --server arg          Specify the server ip address
   --config arg          Set path to custom configuration file
 
-$ sudo /usr/local/sbin/wg_autoc --foreground --server 192.168.8.182 --config /etc/wgauto/client.conf
+$ sudo ./wg_autoc --foreground --server 192.168.8.182 --config /qrwg/config/client.conf
 [2025-01-22 13:09:06.870] [info] Client connected successfully
 [2025-01-22 13:09:06.870] [info] >>> HELLO message sent to server.
 [2025-01-22 13:09:07.370] [info] <<< HELLO message received.

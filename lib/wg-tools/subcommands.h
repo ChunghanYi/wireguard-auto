@@ -11,11 +11,7 @@ int show_main(int argc, const char *argv[]);
 int showconf_main(int argc, const char *argv[]);
 int set_main(int argc, const char *argv[]);
 int setconf_main(int argc, const char *argv[]);
-#if 0
 int genkey_main(int argc, const char *argv[]);
-#else
-int genkey_main(int argc, const char *argv[], int mode);
-#endif
 int pubkey_main(int argc, const char *argv[]);
 
 #endif

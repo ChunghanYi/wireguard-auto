@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  * Copyright (c) 2019 Elhay Rauper
  *
  * SPDX-License-Identifier: MIT
@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <iostream>
+#include "inc/server.h"
 #include "inc/client.h"
 #include "inc/common.h"
 #include "inc/message.h"
@@ -20,15 +21,12 @@
 #include "inc/parser.h"
 #endif
 
-namespace sodium_ae
-{
-    extern std::vector<unsigned char> client_public_key;
-    extern std::vector<unsigned char> server_secret_key;
-}
+//#define DEBUG
 
 Client::Client(int fileDescriptor) {
 	_sockfd.set(fileDescriptor);
 	setConnected(false);
+	_prepare_public_key.resize(32, 0);  /* client public key for PREPARE stage */
 }
 
 bool Client::operator==(const Client& other) const {
@@ -98,24 +96,47 @@ void Client::receiveTask() {
 		}
 	}
 }
-#else /* AE method */
+#else /* AE(Authenticated Encryption) method that has <PREPARE> stage additionally. */
 void Client::send(const char* msg, size_t msgSize) const {
-	std::vector<unsigned char> original_message(msg, msg + msgSize);
-	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
-			sodium_ae::client_public_key, sodium_ae::server_secret_key);
+	if (!isPrepared()) { /* PREPARE stage */
+#ifdef DEBUG
+		std::cout << "(Client::send) isPrepared() is false !!!\n";
+#endif
 
-	const size_t numBytesSent = ::send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+		const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
 
-	const bool sendFailed = (numBytesSent < 0);
-	if (sendFailed) {
-		throw std::runtime_error(strerror(errno));
-	}
+		const bool sendFailed = (numBytesSent < 0);
+		if (sendFailed) {
+			throw std::runtime_error(strerror(errno));
+		}
 
-	const bool notAllBytesWereSent = (numBytesSent < encrypted_message.size());
-	if (notAllBytesWereSent) {
-		char errorMsg[100];
-		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
-		throw std::runtime_error(errorMsg);
+		const bool notAllBytesWereSent = (numBytesSent < msgSize);
+		if (notAllBytesWereSent) {
+			char errorMsg[100];
+			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, msgSize);
+			throw std::runtime_error(errorMsg);
+		}
+	} else { /* PING-PONG protocol stage */
+#ifdef DEBUG
+		std::cout << "(Client::send) isPrepared() is true !!!\n";
+#endif
+		std::vector<unsigned char> original_message(msg, msg + msgSize);
+		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+				getPreparePublicKey(), wgacsPtr->getPrepareSecretKey());
+
+		const size_t numBytesSent = ::send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+
+		const bool sendFailed = (numBytesSent < 0);
+		if (sendFailed) {
+			throw std::runtime_error(strerror(errno));
+		}
+
+		const bool notAllBytesWereSent = (numBytesSent < encrypted_message.size());
+		if (notAllBytesWereSent) {
+			char errorMsg[100];
+			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
+			throw std::runtime_error(errorMsg);
+		}
 	}
 }
 
@@ -132,27 +153,59 @@ void Client::receiveTask() {
 			continue;
 		}
 
-		message_t rmsg;
-		unsigned char rxbuffer[ENC_MESSAGE_SIZE];
-		const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
+		if (!isPrepared()) { /* PREPARE stage */
+#ifdef DEBUG
+			std::cout << "(Client::receiveTask) isPrepared() is false !!!\n";
+#endif
 
-		if (numOfBytesReceived < 1) {
-			const bool clientClosedConnection = (numOfBytesReceived == 0);
-			if (clientClosedConnection) {
-				rmsg.type = AUTOCONN::OK;
+#ifdef USE_GO_CLIENT /* for wireguard windows client */
+			message_t rmsg;
+			char rbuf[1024];
+			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
+			parser::parse_Go_message_string(rbuf, &rmsg);
+#else
+			message_t rmsg;
+			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
+#endif
+			if (numOfBytesReceived < 1) {
+				const bool clientClosedConnection = (numOfBytesReceived == 0);
+				if (clientClosedConnection) {
+					rmsg.type = AUTOCONN::OK;
+				} else {
+					rmsg.type = AUTOCONN::NOK;
+				}
+				setConnected(false);
+				publishEvent(ClientEvent::DISCONNECTED, rmsg);
+				return;
 			} else {
-				rmsg.type = AUTOCONN::NOK;
+				publishEvent(ClientEvent::INCOMING_MSG, rmsg);
 			}
-			setConnected(false);
-			publishEvent(ClientEvent::DISCONNECTED, rmsg);
-			return;
-		} else {
-			std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
-			std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-					encrypted_message, sodium_ae::client_public_key, sodium_ae::server_secret_key);
-			memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
+		} else { /* PING-PONG protocol stage */
+#ifdef DEBUG
+			std::cout << "(Client::receiveTask) isPrepared() is true !!!\n";
+#endif
+			message_t rmsg;
+			unsigned char rxbuffer[ENC_MESSAGE_SIZE];
+			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
-			publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+			if (numOfBytesReceived < 1) {
+				const bool clientClosedConnection = (numOfBytesReceived == 0);
+				if (clientClosedConnection) {
+					rmsg.type = AUTOCONN::OK;
+				} else {
+					rmsg.type = AUTOCONN::NOK;
+				}
+				setConnected(false);
+				publishEvent(ClientEvent::DISCONNECTED, rmsg);
+				return;
+			} else {
+				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
+				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
+						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey());
+				memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
+
+				publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+			}
 		}
 	}
 }
