@@ -106,6 +106,7 @@ private:
 	bool _flagTerminate;
 };
 
+/////////////////////////////////////////////////////////////////
 extern std::unique_ptr<WgacServer> wgacsPtr;
 extern "C" {
 	bool initialize_curve25519(char *pubkey, char *privkey);

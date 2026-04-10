@@ -195,6 +195,7 @@ int main(int argc, char* argv[]) {
 		std::string s(pubkey_base64);
 		wgacsPtr->getConfig().setstr("this_public_key", s);
 
+		//After decoding in base64 to obtain 32 bytes, store them in the class private area.
 		uint8_t key[WG_KEY_LEN];
 		if (!key_from_base64(key, reinterpret_cast<const char*>(privkey_base64))) {
 			spdlog::warn("Private key is not the correct length or format");
