@@ -43,8 +43,10 @@
 
 # Configure specific gcc version, giving alternative name to use.
 # using gcc : 3.2 : g++-3.2 ;
-#using gcc : arm64 : /mnt/hdd/workspace/mini_devices/01222025/friendlywrt23-rk3568/friendlywrt/staging_dir/toolchain-aarch64_generic_gcc-12.3.0_musl/bin/aarch64-openwrt-linux-musl-g++ ;
-using gcc : arm64 : /mnt/hdd/workspace/mini_devices/friendlywrt23-rk3568/friendlywrt/staging_dir/toolchain-aarch64_generic_gcc-12.3.0_musl/bin/aarch64-openwrt-linux-musl-g++ ;
+using gcc : arm64 : /opt/stm32mp2/5.0.15-snapshot/sysroots/x86_64-ostl_sdk-linux/usr/bin/aarch64-ostl-linux/aarch64-ostl-linux-g++ :
+	<compileflags>--sysroot=/opt/stm32mp2/5.0.15-snapshot/sysroots/cortexa35-ostl-linux
+	<linkflags>--sysroot=/opt/stm32mp2/5.0.15-snapshot/sysroots/cortexa35-ostl-linux
+;
 
 # -------------------
 # MSVC configuration.

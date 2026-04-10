@@ -1,0 +1,32 @@
+# Cross-compiler prefix
+#CROSS_COMPILE = aarch64-ostl-linux-
+#CC = $(CROSS_COMPILE)gcc
+#AR = $(CROSS_COMPILE)ar
+
+CFLAGS = -Wall -g -O2 -I./include -I../../external/libsodium-stable/output/include
+ARFLAGS = rcs
+
+# Library name
+LIB_NAME = libwg.a
+
+# Source and Object files
+SRCS = genkey.c curve25519.c encoding.c pubkey.c sec_store.c
+OBJS = $(SRCS:.c=.o)
+
+# Default target
+all: $(LIB_NAME)
+
+# Compile source files to object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Create the static library
+$(LIB_NAME): $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJS)
+	@echo "Static library $(LIB_NAME) created."
+
+# Clean up
+clean:
+	rm -f $(OBJS) $(LIB_NAME)
+
+.PHONY: all clean
