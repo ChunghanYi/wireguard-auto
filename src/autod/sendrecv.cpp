@@ -199,12 +199,15 @@ void Client::receiveTask() {
 				publishEvent(ClientEvent::DISCONNECTED, rmsg);
 				return;
 			} else {
+				bool decrypt_failure = false;
 				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
 				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey());
-				memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
-
-				publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
+						decrypt_failure);
+				if (!decrypt_failure) {
+					memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
+					publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+				}
 			}
 		}
 	}
