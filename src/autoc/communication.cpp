@@ -300,6 +300,19 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 		}
 	}
 
+	//Reconfigure wg0 interface -------------------------------------------------------------
+	sprintf(szInfo, "ip link delete wg0");
+	ret = system(szInfo);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
+	}
+
+	sprintf(szInfo, "ip link add dev wg0 type wireguard");
+	ret = system(szInfo);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
+	}
+
 	sprintf(szInfo, "ip address add dev wg0 %s/%d", inet_ntoa(vpnIP), cidr);
 	ret = system(szInfo);
 	if (ret < 0) {
@@ -311,6 +324,13 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
+
+	sprintf(szInfo, "wg set wg0 listen-port 51820 private-key /qrwg/config/privatekey");
+	ret = system(szInfo);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
+	}
+	//---------------------------------------------------------------------------------------
 
 #ifdef VTYSH
 	snprintf(szInfo, sizeof(szInfo),
@@ -391,9 +411,12 @@ void WgacClient::start() {
 	message_t rmsg;
 
 	while (1) {
-		if (send_prepare_message()) {  /* <PREPARE> stage */
-			if (send_hello_message()) {  /* PING-PING protocol stage */
-				if (send_ping_message(&rmsg)) {
+		if (send_prepare_message()) /* <PREPARE> stage */
+		{
+			if (send_hello_message()) /* PING-PING protocol stage */
+			{
+				if (send_ping_message(&rmsg))
+				{
 					setup_wireguard(&rmsg);	 /* wireguard setup stage */
 					break;
 				}
