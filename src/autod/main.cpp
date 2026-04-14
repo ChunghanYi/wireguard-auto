@@ -20,7 +20,7 @@
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacServer> wgacsPtr;
 const std::string prog_name { "wg_autod" };
-const std::string versionString { "v0.8.00" }; 
+const std::string versionString { "v0.8.10" }; 
 ////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
@@ -33,7 +33,7 @@ static void sig_handler(int sig) {
 				wgacsPtr->setTerminate(true);
 				wgacsPtr->close();
 			}
-			exit(EXIT_SUCCESS);
+			std::_Exit(EXIT_SUCCESS);
 			break;
 		default:
 			break;
@@ -68,7 +68,7 @@ static void redirect_fds() {
 
 	if (open("/dev/null", O_RDWR) != 0) {
 		// We can't notify anybody now
-		exit(1);
+		_exit(1);
 	}
 
 	// Create copy of zero decriptor for 1 and 2 fd's

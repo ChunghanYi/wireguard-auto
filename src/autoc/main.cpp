@@ -16,7 +16,7 @@
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacClient> wgaccPtr;
 const std::string prog_name { "wg_autoc" };
-const std::string versionString { "v0.8.00" };
+const std::string versionString { "v0.8.10" };
 ////////////////////////////////////////////////////////////
 
 static void sig_exit(int s) {
@@ -26,11 +26,21 @@ static void sig_exit(int s) {
 	spdlog::info("Closing {}...", prog_name);
 	pipe_ret_t finishRet = wgaccPtr->close();
 	if (finishRet.isSuccessful()) {
-		spdlog::info("Client closed.");
+		spdlog::info("--- Client closed.");
 	} else {
 		spdlog::error("Failed to close {}.", prog_name);
 	}
-	exit(EXIT_SUCCESS);
+	std::_Exit(EXIT_SUCCESS);
+}
+
+static void sig_usr1(int s) {
+	if (wgaccPtr->isWireguardReady()) {
+		{
+			std::lock_guard<std::mutex> lock(wgaccPtr->getMutex());
+			wgaccPtr->setRestart(true);
+		}
+		wgaccPtr->getCond().notify_one();
+	}
 }
 
 static int do_fork() {
@@ -166,6 +176,7 @@ int main(int argc, char* argv[]) {
 	::signal(SIGINT, sig_exit);
 	::signal(SIGQUIT, sig_exit);
 	::signal(SIGTERM, sig_exit);
+	::signal(SIGUSR1, sig_usr1);
 
 	// Initialize libsodium
 	sodium_ae::initialize_sodium();
@@ -188,26 +199,45 @@ int main(int argc, char* argv[]) {
 		wgaccPtr->setPrepareSecretKey(key);
 	}
 
-	// connect client to an open server
-	bool connected = false;
-	while (!connected) {
-		if (wgaccPtr->getConfig().getint("server_port") >= 1024 &&
-			wgaccPtr->getConfig().getint("server_port") < 65536) {
-			wgac_server_port = wgaccPtr->getConfig().getint("server_port");
-		}
-		pipe_ret_t connectRet = wgaccPtr->connectTo(wgaccPtr->getServerIp(), wgac_server_port);
-		connected = connectRet.isSuccessful();
-		if (connected) {
-			spdlog::info("Client connected successfully");
-		} else {
-			spdlog::info("Client failed to connect: {}", connectRet.message());
-			sleep(2);
-			spdlog::info("Retrying to connect...");
-		}
-	};
+	while (1) {
+		// connect client to an wireguard auto connection server
+		bool connected = false;
+		while (!connected) {
+			if (wgaccPtr->getConfig().getint("server_port") >= 1024 &&
+					wgaccPtr->getConfig().getint("server_port") < 65536) {
+				wgac_server_port = wgaccPtr->getConfig().getint("server_port");
+			}
+			pipe_ret_t connectRet = wgaccPtr->connectTo(wgaccPtr->getServerIp(), wgac_server_port);
+			connected = connectRet.isSuccessful();
+			if (connected) {
+				spdlog::info("--- Client connected successfully");
+			} else {
+				spdlog::info("--- Client failed to connect: {}", connectRet.message());
+				sleep(2);
+				spdlog::info("--- Retrying to connect...");
+			}
+		};
 
-	// main: PING-PONG protocol
-	wgaccPtr->start();
+		// start PING-PONG protocol(core routine)
+		wgaccPtr->start();
+
+		// Wait a signal for condition variable from sig_usr1 handler.
+		std::unique_lock<std::mutex> lock(wgaccPtr->getMutex());
+		wgaccPtr->getCond().wait(lock, []{ return wgaccPtr->shouldRestart(); });
+
+		wgaccPtr->send_bye_message();
+		sleep(1);
+		pipe_ret_t finishRet = wgaccPtr->close();
+		if (finishRet.isSuccessful()) {
+			spdlog::info("--- Client is closed");
+			sleep(3);
+			spdlog::info("--- OK, Let's reconnect to the AutoConnect server.");
+			wgaccPtr->setRestart(false);
+		} else {
+			spdlog::error("Client connection closing is failed.");
+			break;
+		}
+	}
 
 	return 0;
 }

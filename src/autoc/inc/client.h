@@ -21,6 +21,7 @@
 #include <queue>
 #include <errno.h>
 #include <thread>
+#include <condition_variable>
 #include <mutex>
 #include <atomic>
 #include "client_observer.h"
@@ -34,9 +35,10 @@ public:
 	WgacClient();
 	~WgacClient();
 	pipe_ret_t connectTo(const std::string& address, unsigned short port);
-	pipe_ret_t sendMsg(unsigned char* msg, size_t size);
 
 	void start();
+
+	pipe_ret_t sendMsg(unsigned char* msg, size_t size);
 	bool handle_message_queue(message_t* pmsg);
 	bool send_prepare_message();
 	bool send_hello_message();
@@ -70,6 +72,14 @@ public:
 		_prepare_public_key.assign(key, key + WG_KEY_LEN);
 	}
 
+	/* for reconnection to server */
+	bool shouldRestart();
+	void setRestart(bool flag);
+	bool isWireguardReady() const { return _isWireguardReady; }
+
+	std::mutex& getMutex() { return _mtx; }
+	std::condition_variable& getCond() { return _cond; }
+
 private:
 	void initializeSocket();
 	void startReceivingMessages();
@@ -97,9 +107,15 @@ private:
 	std::queue<message_t> _msgQueue;
 	Config _config;
 	std::string _server_ip;
-	bool _flagTerminate = false;
+
+	/* for reconnection to server */
+	std::atomic<bool> _flagTerminate = false;
+	std::atomic<bool> _isWireguardReady = false;
+	std::mutex _mtx;
+	std::condition_variable _cond;
 };
 
+//////////////////////////////////////////////////////////////////////////////
 extern "C" {
 	bool initialize_curve25519(char *pubkey, char *privkey);
 	bool key_from_base64(uint8_t key[WG_KEY_LEN], const char *base64);

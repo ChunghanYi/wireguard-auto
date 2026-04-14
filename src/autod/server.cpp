@@ -205,7 +205,7 @@ void WgacServer::remove_wireguard(const uint8_t* public_key) {
 	}
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
-	spdlog::info("OK, wireguard rule is removed.");
+	spdlog::info("--- OK, wireguard rule is removed.");
 #else
 	std::string error_text;
 	std::vector<std::string> output_list;
@@ -215,7 +215,7 @@ void WgacServer::remove_wireguard(const uint8_t* public_key) {
 	bool exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
 		spdlog::info("--- wireguard rule [{}]", szInfo);
-		spdlog::info("OK, wireguard rule is removed.");
+		spdlog::info("--- OK, wireguard rule is removed.");
 	} else {
 		spdlog::warn("{}", error_text);
 	}
@@ -336,12 +336,13 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 						wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 				send_BYE(client, smsg);
 				if (getVipTable().remove_address_binding(rmsg)) {
-					spdlog::info(">>> Binding address is removed.");
+					spdlog::info("--- Binding address is removed.");
 				}
 				remove_wireguard(rmsg.public_key);
 			} else {
 				send_NOK(client);
 			}
+			client.setPrepared(false); /* for a new connection from client */
 			break;
 
 		default:

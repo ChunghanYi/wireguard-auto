@@ -212,12 +212,15 @@ void WgacClient::receiveTask() {
 				return;
 			} else {
 				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
+				bool decrypt_failure = false;
 				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-						encrypted_message, getPreparePublicKey(), getPrepareSecretKey());
-				memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
-
-				/* Let's put this message to <message queue>. */
-				_msgQueue.push(rmsg);
+						encrypted_message, getPreparePublicKey(), getPrepareSecretKey(),
+						decrypt_failure);
+				if (!decrypt_failure) {
+					memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+					/* Let's put this message to <message queue>. */
+					_msgQueue.push(rmsg);
+				}
 			}
 		}
 	}
@@ -246,4 +249,12 @@ pipe_ret_t WgacClient::close() {
 	}
 	_isClosed = true;
 	return pipe_ret_t::success();
+}
+
+void WgacClient::setRestart(bool flag) {
+	_flagTerminate = flag;
+}
+
+bool WgacClient::shouldRestart() {
+	return _flagTerminate;
 }

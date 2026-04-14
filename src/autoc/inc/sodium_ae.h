@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -19,5 +19,6 @@ namespace sodium_ae
 		const std::vector<unsigned char>& sender_secret_key);
 	std::vector<unsigned char> decrypt_message(const std::vector<unsigned char>& encrypted_message,
 		const std::vector<unsigned char>& sender_public_key,
-		const std::vector<unsigned char>& receiver_secret_key);
+		const std::vector<unsigned char>& receiver_secret_key,
+		bool& decrypt_failure);
 }

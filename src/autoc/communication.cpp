@@ -57,6 +57,8 @@ static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, u
  * Send a PREPARE message and receive an PREPARE/NOK message
  */
 bool WgacClient::send_prepare_message() {
+	setPrepared(false);
+
 	message_t smsg;
 	init_smsg(&smsg, AUTOCONN::PREPARE, 0, 0);
 	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
@@ -368,6 +370,8 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	}
 #endif
 #endif
+
+	_isWireguardReady = true;
 }
 
 /**
@@ -387,7 +391,7 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
 	system(xbuf);
 
 	spdlog::info("--- wireugard rule [{}]", szInfo);
-	spdlog::info("OK, wireguard rule is removed.");
+	spdlog::info("--- OK, wireguard rule is removed.");
 #else
 	std::string error_text;
 	std::vector<std::string> output_list;
@@ -397,11 +401,13 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
 	bool exec_result = common::exec(cmd, output_list, error_text);
 	if (exec_result) {
 		spdlog::info("--- wireugard rule [{}]", szInfo);
-		spdlog::info("OK, wireguard rule is removed.");
+		spdlog::info("--- OK, wireguard rule is removed.");
 	} else {
 		spdlog::warn("{}", error_text);
 	}
 #endif
+
+	_isWireguardReady = false;
 }
 
 /**
@@ -411,22 +417,15 @@ void WgacClient::start() {
 	message_t rmsg;
 
 	while (1) {
-		if (send_prepare_message()) /* <PREPARE> stage */
-		{
-			if (send_hello_message()) /* PING-PING protocol stage */
-			{
-				if (send_ping_message(&rmsg))
-				{
-					setup_wireguard(&rmsg);	 /* wireguard setup stage */
+		if (send_prepare_message()) {         /* <PREPARE> stage */
+			if (send_hello_message()) {       /* PING-PING protocol stage */
+				if (send_ping_message(&rmsg)) {
+					setup_wireguard(&rmsg);	  /* wireguard setup stage */
 					break;
 				}
 			}
 		}
 		sleep(10);
-	}
-
-	while (!_flagTerminate) {
-		sleep(5);
 	}
 }
 

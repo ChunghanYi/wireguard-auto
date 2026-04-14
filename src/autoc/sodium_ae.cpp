@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "spdlog/spdlog.h"
 
 namespace sodium_ae
 {
@@ -70,9 +71,11 @@ std::vector<unsigned char> encrypt_message(const std::vector<unsigned char>& mes
 // Decrypt a message
 std::vector<unsigned char> decrypt_message(const std::vector<unsigned char>& encrypted_message,
                                             const std::vector<unsigned char>& sender_public_key,
-                                            const std::vector<unsigned char>& receiver_secret_key) {
+                                            const std::vector<unsigned char>& receiver_secret_key,
+											bool& decrypt_failure) {
 	if (encrypted_message.size() < crypto_box_NONCEBYTES + crypto_box_MACBYTES) {
-		throw std::runtime_error("Invalid ciphertext size");
+		decrypt_failure = true;
+		spdlog::warn("Invalid ciphertext size.");
 	}
 
 	std::vector<unsigned char> nonce(encrypted_message.begin(), encrypted_message.begin() + crypto_box_NONCEBYTES);
@@ -81,7 +84,8 @@ std::vector<unsigned char> decrypt_message(const std::vector<unsigned char>& enc
 	std::vector<unsigned char> decrypted_message(ciphertext.size() - crypto_box_MACBYTES);
 	if (crypto_box_open_easy(decrypted_message.data(), ciphertext.data(), ciphertext.size(), nonce.data(),
 				sender_public_key.data(), receiver_secret_key.data()) != 0) {
-		throw std::runtime_error("Message decryption failed");
+		decrypt_failure = true;
+		spdlog::warn("Message decryption failed.");
 	}
 	return decrypted_message;
 }
@@ -145,7 +149,8 @@ int test_main() {
 	std::vector<unsigned char> encrypted_message = encrypt_message(original_message, receiver_public_key, sender_secret_key);
 
 	// Decrypt the message
-	std::vector<unsigned char> decrypted_message = decrypt_message(encrypted_message, sender_public_key, receiver_secret_key);
+	bool decrypt_failure = false;
+	std::vector<unsigned char> decrypted_message = decrypt_message(encrypted_message, sender_public_key, receiver_secret_key, decrypt_failure);
 
 	// Output the results
 	std::cout << "Original message: " << original_message_str << std::endl;
