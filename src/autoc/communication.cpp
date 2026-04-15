@@ -313,32 +313,32 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 	}
 
 	//Reconfigure wg0 interface -------------------------------------------------------------
-	sprintf(szInfo, "ip link delete wg0");
-	ret = system(szInfo);
+	snprintf(szInfo, sizeof(szInfo), "ip link delete wg0");
+	ret = std::system(szInfo);
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
 
-	sprintf(szInfo, "ip link add dev wg0 type wireguard");
-	ret = system(szInfo);
+	snprintf(szInfo, sizeof(szInfo), "ip link add dev wg0 type wireguard");
+	ret = std::system(szInfo);
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
 
-	sprintf(szInfo, "ip address add dev wg0 %s/%d", inet_ntoa(vpnIP), cidr);
-	ret = system(szInfo);
+	snprintf(szInfo, sizeof(szInfo), "ip address add dev wg0 %s/%d", inet_ntoa(vpnIP), cidr);
+	ret = std::system(szInfo);
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
 
-	sprintf(szInfo, "ip link set up dev wg0");
-	ret = system(szInfo);
+	snprintf(szInfo, sizeof(szInfo), "ip link set up dev wg0");
+	ret = std::system(szInfo);
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
 
-	sprintf(szInfo, "wg set wg0 listen-port 51820 private-key /qrwg/config/privatekey");
-	ret = system(szInfo);
+	snprintf(szInfo, sizeof(szInfo), "wg set wg0 listen-port 51820 private-key /qrwg/config/privatekey");
+	ret = std::system(szInfo);
 	if (ret < 0) {
 		spdlog::warn("<%s> failed(ret=%d).", szInfo, ret);
 	}
@@ -350,11 +350,17 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
 			rmsg->public_key, vpnip_str, epip_str, rmsg->epPort);
 
 	char xbuf[1024];
-	sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"%s\"", szInfo);
-	system(xbuf);
+	snprintf(xbuf, sizeof(xbuf), "/usr/bin/qrwg/vtysh -e \"%s\"", szInfo);
+	ret = std::system(xbuf);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", xbuf, ret);
+	}
 
-	sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
-	system(xbuf);
+	snprintf(xbuf, sizeof(xbuf), "/usr/bin/qrwg/vtysh -e \"write\"");
+	ret = std::system(xbuf);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", xbuf, ret);
+	}
 
 	spdlog::info("--- wireguard rule [{}]", szInfo);
 	spdlog::info("--- OK, wireguard setup is complete.");
@@ -389,16 +395,23 @@ void WgacClient::setup_wireguard(message_t* rmsg) {
  */
 void WgacClient::remove_wireguard(message_t* rmsg) {
 	char szInfo[256] = {};
+	int ret = 0;
 
 #ifdef VTYSH
 	snprintf(szInfo, sizeof(szInfo), "no wg peer %s", rmsg->public_key);
 
 	char xbuf[512];
 	snprintf(xbuf, sizeof(xbuf), "/usr/bin/qrwg/vtysh -e \"%s\"", szInfo);
-	system(xbuf);
+	ret = std::system(xbuf);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", xbuf, ret);
+	}
 
-	sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
-	system(xbuf);
+	snprintf(xbuf, sizeof(xbuf), "/usr/bin/qrwg/vtysh -e \"write\"");
+	ret = std::system(xbuf);
+	if (ret < 0) {
+		spdlog::warn("<%s> failed(ret=%d).", xbuf, ret);
+	}
 
 	spdlog::info("--- wireugard rule [{}]", szInfo);
 	spdlog::info("--- OK, wireguard rule is removed.");
