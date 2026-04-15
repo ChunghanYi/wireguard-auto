@@ -29,6 +29,7 @@ public:
 	void setEventsHandler(const client_event_handler_t& eventHandler) { _eventHandlerCallback = eventHandler; }
 	void publishEvent(ClientEvent clientEvent, const message_t& msg);
 	bool isConnected() const { return _isConnected; }
+	void setConnected(bool flag) { _isConnected = flag; }
 
 	/* for <PREPARE> stage */
 	bool isPrepared() const { return _isPrepared; }
@@ -44,14 +45,17 @@ public:
 	void print() const;
 
 private:
-	void setConnected(bool flag) { _isConnected = flag; }
 	void receiveTask();
 	void terminateReceiveThread();
 
 	FileDescriptor _sockfd;
 	std::string _ip = "";
 	std::atomic<bool> _isConnected;
+#ifdef LEGACY_CODE
 	std::thread* _receiveThread = nullptr;
+#else
+	std::unique_ptr<std::thread> _receiveThread;
+#endif
 	client_event_handler_t _eventHandlerCallback;
 
 	/* for <PREPARE> stage */

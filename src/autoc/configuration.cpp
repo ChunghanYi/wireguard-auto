@@ -1,6 +1,6 @@
 /*
  * Configuration file client.conf
- * Copyright (c) 2025 Chunghan Yi <chunghan.yi@gmail.com>
+ * Copyright (c) 2025-2026 Chunghan Yi <chunghan.yi@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -93,7 +93,8 @@ bool Config::getbool(const std::string& key) {
 			return false;
 		}
 	} else {
-		throw std::invalid_argument("No value corresponding to the key.");
+		spdlog::error("No value corresponding to the key.");
+		return false;
 	}
 }
 
@@ -104,7 +105,8 @@ int Config::getint(const std::string& key) {
 	if (contains(key)) {
 		return std::stoi(_config_tbl[key]);
 	} else {
-		throw std::invalid_argument("No value corresponding to the key.");
+		spdlog::error("No value corresponding to the key.");
+		return 0;
 	}
 }
 
@@ -115,7 +117,8 @@ float Config::getfloat(const std::string& key) {
 	if (contains(key)) {
 		return std::stof(_config_tbl[key]);
 	} else {
-		throw std::invalid_argument("No value corresponding to the key.");
+		spdlog::error("No value corresponding to the key.");
+		return 0.0;
 	}
 }
 
@@ -130,7 +133,8 @@ std::string Config::getstr(const std::string& key) {
 			return _config_tbl[key].substr(1, _config_tbl[key].length() - 2);
 		}
 	} else {
-		throw std::invalid_argument("No value corresponding to the key.");
+		spdlog::error("No value corresponding to the key.");
+		return "";
 	}
 }
 

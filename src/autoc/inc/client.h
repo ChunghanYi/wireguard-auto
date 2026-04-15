@@ -40,7 +40,7 @@ public:
 
 	pipe_ret_t sendMsg(unsigned char* msg, size_t size);
 	bool handle_message_queue(message_t* pmsg);
-	bool send_prepare_message();
+	bool send_prepare_message(enum AUTOCONN& flag);
 	bool send_hello_message();
 	bool send_ping_message(message_t* pmsg);
 	bool send_bye_message();
@@ -58,6 +58,7 @@ public:
 	void setServerIp(const std::string Ip) { _server_ip = Ip; };
 
 	bool isConnected() const { return _isConnected; }
+	bool isClosed() const { return _isClosed; }
 	pipe_ret_t close();
 
 	/* for <PREPARE> stage */

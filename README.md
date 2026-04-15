@@ -146,6 +146,14 @@ $ sudo ./wg_autoc --foreground --server 192.168.8.182 --config /qrwg/config/clie
 [2025-01-22 13:22:30.902] [info] Closing wg_autoc...
 [2025-01-22 13:22:30.902] [info] Client closed.
 ...
+
+<client side - reconnection try>
+---------------------------------
+$ ./wg_autoc --daemon --server 192.168.8.182 --config /qrwg/config/client.conf
+We will run in daemonized mode
+
+$ killall -USR1 wg_autoc
+The wg_autoc daemon retries the connection with the server when it receives the SIGUSR1 signal.
 ```
 
 ## My blog posting for this project

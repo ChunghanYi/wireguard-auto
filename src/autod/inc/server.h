@@ -75,6 +75,8 @@ public:
 	VipTable& getVipTable() { return _viptable; }
 	Config& getConfig() { return _config; }
 
+	std::mutex& getMutex() { return _clientsMtx; }
+
 	pipe_ret_t close();
 	void printClients();
 
@@ -93,7 +95,11 @@ private:
 	fd_set _fds;
 	std::vector<std::shared_ptr<Client>> _clients;
 	std::mutex _clientsMtx;
+#ifdef LEGACY_CODE
 	std::thread* _clientsRemoverThread = nullptr;
+#else
+	std::unique_ptr<std::thread> _clientsRemoverThread;
+#endif
 	std::atomic<bool> _stopRemoveClientsTask;
 
 	/* for <PREPARE> stage */

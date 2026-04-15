@@ -67,12 +67,16 @@ void WgacServer::removeDeadClients() {
 }
 
 void WgacServer::terminateDeadClientsRemover() {
+#ifdef LEGACY_CODE
 	if (_clientsRemoverThread) {
 		_stopRemoveClientsTask = true;
 		_clientsRemoverThread->join();
 		delete _clientsRemoverThread;
 		_clientsRemoverThread = nullptr;
 	}
+#else
+	_stopRemoveClientsTask = true;
+#endif
 }
 
 /**
@@ -347,7 +351,15 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 
 		default:
 			spdlog::info(">>> UNKNOWN message received.");
-			send_NOK(client);
+			message_t smsg{};
+			smsg.type = AUTOCONN::BYE;
+			memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+			memcpy(smsg.public_key,
+					wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+			send_BYE(client, smsg);
+
+			client.setConnected(false);
+			client.setPrepared(false);
 			break;
 	}
 }
@@ -361,7 +373,12 @@ void WgacServer::handleClientDisconnected(const std::string& clientIP, const mes
  */
 pipe_ret_t WgacServer::start(unsigned short port, int maxNumOfClients, bool removeDeadClientsAutomatically) {
 	if (removeDeadClientsAutomatically) {
+#ifdef LEGACY_CODE
 		_clientsRemoverThread = new std::thread(&WgacServer::removeDeadClients, this);
+#else
+		auto _clientsRemoverThread = std::make_unique<std::thread>(&WgacServer::removeDeadClients, this);
+		_clientsRemoverThread->detach();
+#endif
 	}
 	try {
 		initializeSocket();
@@ -377,6 +394,9 @@ void WgacServer::initializeSocket() {
 	_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
 	const bool socketFailed = (_sockfd.get() == -1);
 	if (socketFailed) {
+#ifdef DEBUG
+		std::cout << "(WgacServer::initializeSocket) socket Failed !!!\n";
+#endif
 		throw std::runtime_error(strerror(errno));
 	}
 
@@ -394,6 +414,9 @@ void WgacServer::bindAddress(int port) {
 	const int bindResult = bind(_sockfd.get(), (struct sockaddr *)&_serverAddress, sizeof(_serverAddress));
 	const bool bindFailed = (bindResult == -1);
 	if (bindFailed) {
+#ifdef DEBUG
+		std::cout << "(WgacServer::bindAddress) bind Failed !!!\n";
+#endif
 		throw std::runtime_error(strerror(errno));
 	}
 }
@@ -402,6 +425,9 @@ void WgacServer::listenToClients(int maxNumOfClients) {
 	const int clientsQueueSize = maxNumOfClients;
 	const bool listenFailed = (listen(_sockfd.get(), clientsQueueSize) == -1);
 	if (listenFailed) {
+#ifdef DEBUG
+		std::cout << "(WgacServer::listenToClients) listen Failed !!!\n";
+#endif
 		throw std::runtime_error(strerror(errno));
 	}
 }
@@ -417,6 +443,9 @@ void WgacServer::listenToClients(int maxNumOfClients) {
 std::string WgacServer::acceptClient(uint timeout) {
 	const pipe_ret_t waitingForClient = waitForClient(timeout);
 	if (!waitingForClient.isSuccessful()) {
+#ifdef DEBUG
+		std::cout << "(WgacServer::acceptClient) !waitingForClient.isSuccessful() !!!\n";
+#endif
 		throw std::runtime_error(waitingForClient.message());
 	}
 
@@ -425,6 +454,9 @@ std::string WgacServer::acceptClient(uint timeout) {
 
 	const bool acceptFailed = (fileDescriptor == -1);
 	if (acceptFailed) {
+#ifdef DEBUG
+		std::cout << "(WgacServer::acceptClient) accept Failed !!!\n";
+#endif
 		throw std::runtime_error(strerror(errno));
 	}
 

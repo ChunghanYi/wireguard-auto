@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <thread>
+#include <chrono>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <time.h>
@@ -56,7 +58,7 @@ static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, u
 /**
  * Send a PREPARE message and receive an PREPARE/NOK message
  */
-bool WgacClient::send_prepare_message() {
+bool WgacClient::send_prepare_message(enum AUTOCONN& flag) {
 	setPrepared(false);
 
 	message_t smsg;
@@ -71,7 +73,7 @@ bool WgacClient::send_prepare_message() {
 		spdlog::info(">>> PREPARE message sent to server.");
 	}
 
-	usleep(500000);
+	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	//Receive the PREPARE message from server
 	message_t rmsg;
@@ -89,6 +91,12 @@ bool WgacClient::send_prepare_message() {
 			setPrepared(true);
 			spdlog::info("--- Preparation key received from server.");
 			return true;
+		} else if (rmsg.type == AUTOCONN::BYE) {
+			spdlog::info("<<< OMG! BYE message received.");
+			_isConnected = false;
+			setPrepared(false);
+			flag = AUTOCONN::BYE;
+			return false;
 		} else {
 			spdlog::info("<<< Oops, PREPARE message NOT received.");
 			setPrepared(false);
@@ -126,7 +134,7 @@ bool WgacClient::send_hello_message() {
 		spdlog::info(">>> HELLO message sent to server.");
 	}
 
-	usleep(500000);
+	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	//Get the vpn ip allocated from server
 	message_t rmsg;
@@ -151,6 +159,7 @@ bool WgacClient::send_hello_message() {
 		}
 	} else {
 		spdlog::info("<<< No message has arrived.");
+		setPrepared(false);
 		return false;
 	}
 }
@@ -190,7 +199,7 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 		spdlog::info(">>> PING message sent to server.");
 	}
 
-	usleep(500000);
+	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	if (handle_message_queue(pmsg)) {
 		if (pmsg->type == AUTOCONN::PONG) {
@@ -202,6 +211,7 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 		}
 	} else {
 		spdlog::info("<<< No message has arrived.");
+		setPrepared(false);
 		return false;
 	}
 }
@@ -232,7 +242,7 @@ bool WgacClient::send_bye_message() {
 		spdlog::info(">>> BYE message sent to server.");
 	}
 
-	usleep(500000);
+	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	message_t rmsg;
 	if (handle_message_queue(&rmsg)) {
@@ -263,7 +273,7 @@ bool WgacClient::handle_message_queue(message_t* pmsg) {
 			_msgQueue.pop();
 			return true;
 		}
-		usleep(1000);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		t = time(NULL);
 		if (t - last_time > 1) {
 			pmsg->type = AUTOCONN::NOK;
@@ -415,15 +425,21 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
  */
 void WgacClient::start() {
 	message_t rmsg;
+	int count {};
+	enum AUTOCONN flag { AUTOCONN::PREPARE };
 
 	while (1) {
-		if (send_prepare_message()) {         /* <PREPARE> stage */
+		if (send_prepare_message(flag)) {         /* <PREPARE> stage */
 			if (send_hello_message()) {       /* PING-PING protocol stage */
 				if (send_ping_message(&rmsg)) {
 					setup_wireguard(&rmsg);	  /* wireguard setup stage */
 					break;
 				}
 			}
+		} else {
+			if (flag == AUTOCONN::BYE) break;
+			count++;
+			if (count > 3) break;
 		}
 		sleep(10);
 	}
@@ -488,7 +504,7 @@ void WgacClient::send_ac_vpn_message(message_t* rmsg) {
 
 	if (send_local_message(&xmsg) == 0) {
 		spdlog::info("||| VPNINFO sent to wireguard-c daemon thru loopback socket");
-		usleep(500000);  /* 0.5 seconds */
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
 }
 
@@ -508,7 +524,7 @@ int WgacClient::send_start_vpn_message(enum AUTOCONN type) {
 	memset(&xmsg, 0, sizeof(ac_message_t));
 	xmsg.m.type = type;
 	if (send_local_message(&xmsg) == 0) {
-		usleep(500000);  /* 0.5 seconds */
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
 	return ret;
 }

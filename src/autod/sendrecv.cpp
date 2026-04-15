@@ -38,7 +38,12 @@ bool Client::operator==(const Client& other) const {
 
 void Client::startListen() {
 	setConnected(true);
+#ifdef LEGACY_CODE
 	_receiveThread = new std::thread(&Client::receiveTask, this);
+#else
+	auto _receiveThread = std::make_unique<std::thread>(&Client::receiveTask, this);
+	_receiveThread->detach();
+#endif
 }
 
 #ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
@@ -104,17 +109,22 @@ void Client::send(const char* msg, size_t msgSize) const {
 #endif
 
 		const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
-
 		const bool sendFailed = (numBytesSent < 0);
 		if (sendFailed) {
-			throw std::runtime_error(strerror(errno));
+			std::cout << "(Client::send) send failed#1.\n";
+			return;
 		}
 
 		const bool notAllBytesWereSent = (numBytesSent < msgSize);
 		if (notAllBytesWereSent) {
+#if 0
 			char errorMsg[100];
 			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, msgSize);
 			throw std::runtime_error(errorMsg);
+#else
+			std::cout << "(Client::send) send failed#2.\n";
+			return;
+#endif
 		}
 	} else { /* PING-PONG protocol stage */
 #ifdef DEBUG
@@ -128,14 +138,20 @@ void Client::send(const char* msg, size_t msgSize) const {
 
 		const bool sendFailed = (numBytesSent < 0);
 		if (sendFailed) {
-			throw std::runtime_error(strerror(errno));
+			std::cout << "(Client::send) send failed#3.\n";
+			return;
 		}
 
 		const bool notAllBytesWereSent = (numBytesSent < encrypted_message.size());
 		if (notAllBytesWereSent) {
+#if 0
 			char errorMsg[100];
 			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
 			throw std::runtime_error(errorMsg);
+#else
+			std::cout << "(Client::send) send failed#4.\n";
+			return;
+#endif
 		}
 	}
 }
@@ -148,7 +164,8 @@ void Client::receiveTask() {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
 
 		if (waitResult == fd_wait::Result::FAILURE) {
-			throw std::runtime_error(strerror(errno));
+			setConnected(false);
+			return;
 		} else if (waitResult == fd_wait::Result::TIMEOUT) {
 			continue;
 		}
@@ -207,6 +224,15 @@ void Client::receiveTask() {
 				if (!decrypt_failure) {
 					memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
 					publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+				} else {
+					message_t smsg{};
+					smsg.type = AUTOCONN::BYE;
+					memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+					memcpy(smsg.public_key,
+							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+					wgacsPtr->send_BYE(*this, smsg);
+
+					setConnected(false);
 				}
 			}
 		}
@@ -242,11 +268,13 @@ void Client::print() const {
 
 void Client::terminateReceiveThread() {
 	setConnected(false);
+#ifdef LEGACY_CODE
 	if (_receiveThread) {
 		_receiveThread->join();
 		delete _receiveThread;
 		_receiveThread = nullptr;
 	}
+#endif
 }
 
 void Client::close() {
@@ -254,6 +282,8 @@ void Client::close() {
 
 	const bool closeFailed = (::close(_sockfd.get()) == -1);
 	if (closeFailed) {
+#if 0
 		throw std::runtime_error(strerror(errno));
+#endif
 	}
 }

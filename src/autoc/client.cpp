@@ -55,6 +55,9 @@ void WgacClient::initializeSocket() {
 	_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
 	const bool socketFailed = (_sockfd.get() == -1);
 	if (socketFailed) {
+#ifdef DEBUG
+		std::cout << "(WgacClient::initializeSocket() socket failed !!!\n";
+#endif
 		throw std::runtime_error(strerror(errno));
 	}
 }
@@ -67,6 +70,9 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 		struct hostent* host;
 		struct in_addr** addrList;
 		if ((host = gethostbyname(address.c_str())) == nullptr) {
+#ifdef DEBUG
+			std::cout << "(WgacClient::setAddress() gethostbyname !!!\n";
+#endif
 			throw std::runtime_error("Failed to resolve hostname");
 		}
 		addrList = (struct in_addr**) host->h_addr_list;
@@ -99,7 +105,11 @@ void WgacClient::receiveTask() {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
 
 		if (waitResult == fd_wait::Result::FAILURE) {
-			throw std::runtime_error(strerror(errno));
+#ifdef DEBUG
+			std::cout << "(WgacClient::receiveTask() fd_wait::Result::FAILURE !!!\n";
+#endif
+			_isConnected = false;
+			return;
 		} else if (waitResult == fd_wait::Result::TIMEOUT) {
 			continue;
 		}
@@ -168,7 +178,11 @@ void WgacClient::receiveTask() {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
 
 		if (waitResult == fd_wait::Result::FAILURE) {
-			throw std::runtime_error(strerror(errno));
+#ifdef DEBUG
+			std::cout << "(WgacClient::receiveTask() fd_wait::Result::FAILURE !!!\n";
+#endif
+			_isConnected = false;
+			return;
 		} else if (waitResult == fd_wait::Result::TIMEOUT) {
 			continue;
 		}

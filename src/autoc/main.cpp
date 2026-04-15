@@ -16,7 +16,7 @@
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacClient> wgaccPtr;
 const std::string prog_name { "wg_autoc" };
-const std::string versionString { "v0.8.10" };
+const std::string versionString { "v0.8.50" };
 ////////////////////////////////////////////////////////////
 
 static void sig_exit(int s) {
@@ -33,13 +33,23 @@ static void sig_exit(int s) {
 	std::_Exit(EXIT_SUCCESS);
 }
 
+auto last_processed = std::chrono::steady_clock::now();
+const auto interval = std::chrono::milliseconds(1000);
+
 static void sig_usr1(int s) {
-	if (wgaccPtr->isWireguardReady()) {
-		{
-			std::lock_guard<std::mutex> lock(wgaccPtr->getMutex());
-			wgaccPtr->setRestart(true);
-		}
-		wgaccPtr->getCond().notify_one();
+	auto now = std::chrono::steady_clock::now();
+	if (now - last_processed <= interval) {
+		last_processed = now;
+		std::cout << "Too fast SIGUSR1 signal is ignored.\n";
+		return;
+	}
+
+	last_processed = now;
+
+	if (!wgaccPtr->isConnected() || wgaccPtr->isWireguardReady()) {
+		wgaccPtr->setRestart(true);
+	} else {
+		std::cout << "SIGUSR1 signal is ignored.\n";
 	}
 }
 
@@ -221,21 +231,28 @@ int main(int argc, char* argv[]) {
 		// start PING-PONG protocol(core routine)
 		wgaccPtr->start();
 
-		// Wait a signal for condition variable from sig_usr1 handler.
-		std::unique_lock<std::mutex> lock(wgaccPtr->getMutex());
-		wgaccPtr->getCond().wait(lock, []{ return wgaccPtr->shouldRestart(); });
+		// Wait until a restart request is coming
+		while (!wgaccPtr->shouldRestart()) {
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		wgaccPtr->setRestart(false);
 
-		wgaccPtr->send_bye_message();
-		sleep(1);
-		pipe_ret_t finishRet = wgaccPtr->close();
-		if (finishRet.isSuccessful()) {
-			spdlog::info("--- Client is closed");
-			sleep(3);
+		if (wgaccPtr->isClosed()) {
+			spdlog::info("--- Client is already closed");
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 			spdlog::info("--- OK, Let's reconnect to the AutoConnect server.");
-			wgaccPtr->setRestart(false);
 		} else {
-			spdlog::error("Client connection closing is failed.");
-			break;
+			wgaccPtr->send_bye_message();
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			pipe_ret_t finishRet = wgaccPtr->close();
+			if (finishRet.isSuccessful()) {
+				spdlog::info("--- Client is closed");
+				std::this_thread::sleep_for(std::chrono::seconds(2));
+				spdlog::info("--- OK, Let's reconnect to the AutoConnect server.");
+			} else {
+				spdlog::error("Client connection closing is failed.");
+				break;
+			}
 		}
 	}
 

@@ -20,7 +20,7 @@
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacServer> wgacsPtr;
 const std::string prog_name { "wg_autod" };
-const std::string versionString { "v0.8.10" }; 
+const std::string versionString { "v0.8.50" }; 
 ////////////////////////////////////////////////////////////
 
 static void sig_handler(int sig) {
