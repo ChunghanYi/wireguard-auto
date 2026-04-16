@@ -48,7 +48,7 @@ void get_local_mac_address(char* macaddr) {
  * Initialize a message with the given fields
  */
 static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, uint32_t mask) {
-	memset(smsg, 0, sizeof(message_t));
+	std::memset(smsg, 0, sizeof(message_t));
 	smsg->type = type;
 	get_local_mac_address(reinterpret_cast<char*>(smsg->mac_addr));
 	smsg->vpnIP.s_addr = ip;
@@ -63,7 +63,7 @@ bool WgacClient::send_prepare_message(enum AUTOCONN& flag) {
 
 	message_t smsg;
 	init_smsg(&smsg, AUTOCONN::PREPARE, 0, 0);
-	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	std::memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -117,14 +117,14 @@ bool WgacClient::send_hello_message() {
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
 
-	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	std::memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
 	if (inet_pton(AF_INET, _config.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
 		spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 		return false;
 	}
 	smsg.epPort = _config.getint("this_endpoint_port");
-	memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
+	std::memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -182,14 +182,14 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 		return false;
 	}
 
-	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	std::memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
 	if (inet_pton(AF_INET, _config.getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
 		spdlog::warn("inet_pton(this_endpoint_ip) failed.");
 		return false;
 	}
 	smsg.epPort = _config.getint("this_endpoint_port");
-	memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
+	std::memcpy(smsg.allowed_ips, _config.getstr("this_allowed_ips").c_str(), 256);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -232,7 +232,7 @@ bool WgacClient::send_bye_message() {
 		spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 		return false;
 	}
-	memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+	std::memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
 	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
 	if (!sendRet.isSuccessful()) {
@@ -494,7 +494,7 @@ int WgacClient::send_local_message(ac_message_t* smsg) {
 	hostent = gethostbyname("127.0.0.1");
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(vpn_event_port);
-	memcpy(&addr.sin_addr, hostent->h_addr, hostent->h_length);
+	std::memcpy(&addr.sin_addr, hostent->h_addr, hostent->h_length);
 
 	if (xsendto(sd, smsg, sizeof(ac_message_t), 0,
 				(struct sockaddr*)&addr, sizeof (addr)) == -1) {
@@ -508,7 +508,7 @@ int WgacClient::send_local_message(ac_message_t* smsg) {
 
 void WgacClient::send_ac_vpn_message(message_t* rmsg) {
 	ac_message_t xmsg;
-	memcpy(&xmsg, rmsg, sizeof(message_t));
+	std::memcpy(&xmsg, rmsg, sizeof(message_t));
 	xmsg.m.type = AUTOCONN::SEND_VPN_INFORMATION;
 	if (inet_pton(AF_INET, _config.getstr("this_vpn_ip").c_str(), &(xmsg.clientIP)) != 1) {
 		spdlog::warn("inet_pton(this_vpn_ip) failed.");
@@ -534,7 +534,7 @@ int WgacClient::send_start_vpn_message(enum AUTOCONN type) {
 		return ret;
 	}
 
-	memset(&xmsg, 0, sizeof(ac_message_t));
+	std::memset(&xmsg, 0, sizeof(ac_message_t));
 	xmsg.m.type = type;
 	if (send_local_message(&xmsg) == 0) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));

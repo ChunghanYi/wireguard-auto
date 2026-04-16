@@ -244,7 +244,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 
 					message_t smsg {};
 					smsg.type = AUTOCONN::PREPARE;
-					memcpy(smsg.public_key,
+					std::memcpy(smsg.public_key,
 							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 					send_PREPARE(client, smsg);
 					client.setPrepared(true);
@@ -257,7 +257,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			if (add_peer_table(rmsg)) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::HELLO;
-				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+				std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
 				if (inet_pton(AF_INET,
 					wgacsPtr->getConfig().getstr("this_vpn_netmask").c_str(), &(smsg.vpnNetmask)) != 1) {
@@ -296,7 +296,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			if (update_peer_table(rmsg)) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::PONG;
-				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+				std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 				if (inet_pton(AF_INET,
 					wgacsPtr->getConfig().getstr("this_vpn_ip").c_str(), &(smsg.vpnIP)) != 1) {
 					spdlog::warn("inet_pton(this_vpn_ip) failed.");
@@ -307,7 +307,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 						spdlog::warn("inet_pton(this_vpn_netmask) failed.");
 						send_NOK(client);
 					} else {
-						memcpy(smsg.public_key,
+						std::memcpy(smsg.public_key,
 								wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 						if (inet_pton(AF_INET,
 							wgacsPtr->getConfig().getstr("this_endpoint_ip").c_str(), &(smsg.epIP)) != 1) {
@@ -317,8 +317,8 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 							smsg.epPort = wgacsPtr->getConfig().getint("this_endpoint_port");
 							std::string str = wgacsPtr->getConfig().getstr("this_allowed_ips");
 							int len = str.length();
-							memset(smsg.allowed_ips, 0, sizeof(smsg.allowed_ips));
-							memcpy(smsg.allowed_ips, str.c_str(), len);
+							std::memset(smsg.allowed_ips, 0, sizeof(smsg.allowed_ips));
+							std::memcpy(smsg.allowed_ips, str.c_str(), len);
 							spdlog::debug("--- This Allowed_IPS ----> {}", str);
 							send_PONG(client, smsg);
 							setup_wireguard(rmsg);
@@ -335,8 +335,8 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			if (remove_peer_table(rmsg)) {
 				message_t smsg{};
 				smsg.type = AUTOCONN::BYE;
-				memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-				memcpy(smsg.public_key,
+				std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+				std::memcpy(smsg.public_key,
 						wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 				send_BYE(client, smsg);
 				if (getVipTable().remove_address_binding(rmsg)) {
@@ -353,8 +353,8 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			spdlog::info(">>> UNKNOWN message received.");
 			message_t smsg{};
 			smsg.type = AUTOCONN::BYE;
-			memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-			memcpy(smsg.public_key,
+			std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+			std::memcpy(smsg.public_key,
 					wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 			send_BYE(client, smsg);
 
@@ -406,7 +406,7 @@ void WgacServer::initializeSocket() {
 }
 
 void WgacServer::bindAddress(int port) {
-	memset(&_serverAddress, 0, sizeof(_serverAddress));
+	std::memset(&_serverAddress, 0, sizeof(_serverAddress));
 	_serverAddress.sin_family = AF_INET;
 	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	_serverAddress.sin_port = htons(port);
@@ -539,7 +539,7 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
  */
 bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 	message_t smsg;
-	memcpy(&smsg, &msg, sizeof(message_t));
+	std::memcpy(&smsg, &msg, sizeof(message_t));
 
 #ifdef USE_GO_CLIENT /* for wireguard windows client */
 	/* Let's convert message_t structure to C++ string */

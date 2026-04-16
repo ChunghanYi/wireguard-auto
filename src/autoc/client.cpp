@@ -231,7 +231,7 @@ void WgacClient::receiveTask() {
 						encrypted_message, getPreparePublicKey(), getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
-					memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
 					/* Let's put this message to <message queue>. */
 					_msgQueue.push(rmsg);
 				}

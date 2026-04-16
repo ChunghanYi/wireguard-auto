@@ -174,7 +174,7 @@ bool WgacServer::add_peer_table(const message_t& rmsg) {
 	if (peer == nullptr) {
 		std::shared_ptr<peer_table_t> peer = std::make_shared<peer_table_t>();
 		if (peer) {
-			memcpy(peer->mac_addr, rmsg.mac_addr, 6);
+			std::memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 			_peers.insert(std::make_pair(macstr, peer));
 
 #ifdef REDIS
@@ -218,7 +218,7 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
 
 	std::shared_ptr<peer_table_t> peer = get_peer_table(rmsg);
 	if (peer) {
-		memcpy(peer->mac_addr, rmsg.mac_addr, 6);
+		std::memcpy(peer->mac_addr, rmsg.mac_addr, 6);
 		peer->vpnIP.s_addr = rmsg.vpnIP.s_addr;
 		peer->vpnNetmask.s_addr = rmsg.vpnNetmask.s_addr;
 
@@ -228,11 +228,11 @@ bool WgacServer::update_peer_table(const message_t& rmsg) {
 			if (strlen(reinterpret_cast<const char*>(peer->public_key)) == WG_KEY_LEN_BASE64-1) 
 				remove_wireguard(peer->public_key);
 		}
-		memcpy(peer->public_key, rmsg.public_key, WG_KEY_LEN_BASE64);
+		std::memcpy(peer->public_key, rmsg.public_key, WG_KEY_LEN_BASE64);
 
 		peer->epIP.s_addr = rmsg.epIP.s_addr;
 		peer->epPort = rmsg.epPort;
-		memcpy(peer->allowed_ips, rmsg.allowed_ips, 256);
+		std::memcpy(peer->allowed_ips, rmsg.allowed_ips, 256);
 
 #ifdef REDIS
 		char macbuf[32], vpnIP_str[16], vpnNetmask_str[16], xbuf[512];

@@ -222,13 +222,13 @@ void Client::receiveTask() {
 						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
-					memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
+					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
 					publishEvent(ClientEvent::INCOMING_MSG, rmsg);
 				} else {
 					message_t smsg{};
 					smsg.type = AUTOCONN::BYE;
-					memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-					memcpy(smsg.public_key,
+					std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+					std::memcpy(smsg.public_key,
 							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 					wgacsPtr->send_BYE(*this, smsg);
 

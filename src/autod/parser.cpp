@@ -12,7 +12,7 @@
 #include <map>
 #include <cstdint>
 #include <limits>
-//#include <stdexcept> // for std::invalid_argument and std::out_of_range
+#include <cstring>
 
 #include "inc/server.h"
 #include "inc/common.h"
@@ -121,8 +121,8 @@ bool parse_Go_message_string(const char* rbuf, message_t* rmsg) {
 		} else if (msgFields[0] == "publickey") {
 			int len = msgFields[1].length();
 			const uint8_t* p = reinterpret_cast<const uint8_t*>(msgFields[1].c_str());
-			memset(rmsg->public_key, 0, WG_KEY_LEN_BASE64);
-			memcpy(rmsg->public_key, p, len);
+			std::memset(rmsg->public_key, 0, WG_KEY_LEN_BASE64);
+			std::memcpy(rmsg->public_key, p, len);
 
 		} else if (msgFields[0] == "epip") {
 			if (inet_pton(AF_INET, msgFields[1].c_str(), &(rmsg->epIP)) <= 0) {
@@ -140,9 +140,9 @@ bool parse_Go_message_string(const char* rbuf, message_t* rmsg) {
 		} else if (msgFields[0] == "allowedips") {
 			int len = msgFields[1].length();
 			const uint8_t* p = reinterpret_cast<const uint8_t*>(msgFields[1].c_str());
-			memset(rmsg->allowed_ips, 0, sizeof(rmsg->allowed_ips));
+			std::memset(rmsg->allowed_ips, 0, sizeof(rmsg->allowed_ips));
 			if (len < sizeof(rmsg->allowed_ips)) {
-				memcpy(rmsg->allowed_ips, p, len);
+				std::memcpy(rmsg->allowed_ips, p, len);
 				//spdlog::info("rmsg->allowed_ips ---> [{}]", rmsg->allowed_ips);
 			} else {
 				flag = false;
