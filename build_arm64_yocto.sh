@@ -94,6 +94,8 @@ build_it()
 		fi
 		cd build
 		cmake .. && make
+		aarch64-ostl-linux-strip ./wg_autoc
+		aarch64-ostl-linux-strip ./wg_autod
 
 	elif [ $1 = "clean" ]; then
 		rm -rf ./build > /dev/null 2>&1

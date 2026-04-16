@@ -84,6 +84,9 @@ build_it()
 		fi
 		cd build
 		cmake .. && make
+		strip ./wg_autoc
+		strip ./wg_autod
+
 	elif [ $1 = "clean" ]; then
 		rm -rf ./build > /dev/null 2>&1
 		rm -rf ./external/lib > /dev/null 2>&1

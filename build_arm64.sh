@@ -15,6 +15,7 @@ export CC=aarch64-openwrt-linux-musl-gcc
 export CXX=aarch64-openwrt-linux-musl-g++
 export AR=aarch64-openwrt-linux-musl-ar
 export RANLIB=aarch64-openwrt-linux-musl-ranlib
+export STRIP=aarch64-openwrt-linux-musl-strip
 
 build_it()
 {
@@ -100,6 +101,8 @@ build_it()
 		fi
 		cd build
 		cmake .. && make
+		$STRIP ./wg_autoc
+		$STRIP ./wg_autod
 
 	elif [ $1 = "clean" ]; then
 		rm -rf ./build > /dev/null 2>&1
