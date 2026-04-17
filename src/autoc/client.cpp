@@ -339,7 +339,7 @@ void WgacClient::receiveTask() {
 			std::cout << "(WgacClient::receiveTask) isPrepared() is true !!!\n";
 #endif
 			message_t rmsg {};
-			unsigned char rxbuffer[ENC_MESSAGE_SIZE] {};
+			unsigned char rxbuffer[1024] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
 			if (numOfBytesReceived < 1) {
@@ -359,8 +359,10 @@ void WgacClient::receiveTask() {
 						decrypt_failure);
 				if (!decrypt_failure) {
 #ifdef GENERIC_CLIENTS
-					if (!parser::parse_Go_message_string(
-								reinterpret_cast<char*>(decrypted_message.data()), &rmsg)) {
+					char rbuf[1024] {};
+					memcpy(rbuf, reinterpret_cast<char*>(decrypted_message.data()),
+							decrypted_message.size() * sizeof(unsigned char));
+					if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
 #ifdef DEBUG
 						std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
 #endif

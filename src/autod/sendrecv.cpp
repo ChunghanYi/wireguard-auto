@@ -122,14 +122,8 @@ void Client::send(const char* msg, size_t msgSize) const {
 
 		const bool notAllBytesWereSent = (numBytesSent < msgSize);
 		if (notAllBytesWereSent) {
-#if 0
-			char errorMsg[100];
-			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, msgSize);
-			throw std::runtime_error(errorMsg);
-#else
 			std::cout << "(Client::send) send failed#2.\n";
 			return;
-#endif
 		}
 	} else { /* PING-PONG protocol stage */
 #ifdef DEBUG
@@ -149,14 +143,8 @@ void Client::send(const char* msg, size_t msgSize) const {
 
 		const bool notAllBytesWereSent = (numBytesSent < encrypted_message.size());
 		if (notAllBytesWereSent) {
-#if 0
-			char errorMsg[100];
-			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
-			throw std::runtime_error(errorMsg);
-#else
 			std::cout << "(Client::send) send failed#4.\n";
 			return;
-#endif
 		}
 	}
 }
@@ -212,7 +200,7 @@ void Client::receiveTask() {
 			std::cout << "(Client::receiveTask) isPrepared() is true !!!\n";
 #endif
 			message_t rmsg {};
-			unsigned char rxbuffer[ENC_MESSAGE_SIZE] {};
+			unsigned char rxbuffer[1024] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
 			if (numOfBytesReceived < 1) {
@@ -233,8 +221,10 @@ void Client::receiveTask() {
 						decrypt_failure);
 				if (!decrypt_failure) {
 #ifdef GENERIC_CLIENTS
-					if (!parser::parse_Go_message_string(
-								reinterpret_cast<char*>(decrypted_message.data()), &rmsg)) {
+					char rbuf[1024] {};
+					memcpy(rbuf, reinterpret_cast<char*>(decrypted_message.data()),
+							decrypted_message.size() * sizeof(unsigned char)); 
+					if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
 #ifdef DEBUG
 						std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
 #endif
