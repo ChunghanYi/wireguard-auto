@@ -37,14 +37,10 @@ include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
                     ${CMAKE_SOURCE_DIR}/external/boost_1_88_0
                     ${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include)
 
-#wireguard kernel via vtysh or pure wireguard kernel
-#or -------(w/ vtysh)
-#add_definitions(-DREDIS -DVTYSH)
-#or -------(w/o vtysh) 
+#add_definitions(-DVTYSH)
 add_definitions(-DREDIS)
-# --------------------------------------------------------------------
-#for wireguard windows auto connect
-#add_definitions(-DNO_AUTHENTICATED_ENCRYPTION_METHOD -DUSE_GO_CLIENT)
+add_definitions(-DGENERIC_CLIENTS) 
+add_definitions(-DAUTHENTICATED_ENCRYPTION)
 
 #server ---------------------------------------------------------------------------
 add_executable(wg_autod
@@ -67,5 +63,6 @@ add_executable(wg_autoc
 		src/autoc/communication.cpp
 		src/autoc/configuration.cpp
 		src/autoc/sodium_ae.cpp
+		src/autoc/parser.cpp
 		src/autoc/common.cpp)
 target_link_libraries (wg_autoc wg spdlog boost_program_options sodium)

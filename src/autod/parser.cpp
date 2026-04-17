@@ -19,7 +19,7 @@
 #include "inc/message.h"
 #include "spdlog/spdlog.h"
 
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 namespace parser
 {
 bool stringToUint16(const std::string& str, uint16_t& result) {
@@ -67,7 +67,7 @@ std::vector<std::string> splitString(const std::string& str, const std::string& 
  *   epport:=51280\n
  *   allowedips:=10.1.1.0/24,192.168.1.0\n
 */
-bool parse_Go_message_string(const char* rbuf, message_t* rmsg) {
+bool parse_Go_message_string(char* rbuf, message_t* rmsg) {
 	std::string text = rbuf;
 	std::string delimiter = "\n";
 	std::vector<std::string> msgtokens = splitString(text, delimiter);

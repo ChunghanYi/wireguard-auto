@@ -534,7 +534,7 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
 	return sendToClient(client, msg, size);
 }
 
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 // Let's convert message_t structure to string
 /* Golang syntax
 	type Message struct {
@@ -610,7 +610,7 @@ std::string convert_message2string(const message_t& msg, size_t size) {
  * Send message to specific client (determined by client IP address) with OK or NOK string.
  */
 bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
-#ifdef USE_GO_CLIENT /* for wireguard windows client */
+#ifdef GENERIC_CLIENTS
 	std::string total_s = convert_message2string(msg, sizeof(message_t));
 	const char* buf_ptr = total_s.c_str();
 	try {

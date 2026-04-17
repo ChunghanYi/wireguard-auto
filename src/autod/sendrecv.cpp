@@ -17,7 +17,7 @@
 #include "inc/common.h"
 #include "inc/message.h"
 #include "inc/sodium_ae.h"
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 #include "inc/parser.h"
 #endif
 
@@ -46,7 +46,7 @@ void Client::startListen() {
 #endif
 }
 
-#ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
+#ifndef AUTHENTICATED_ENCRYPTION
 void Client::send(const char* msg, size_t msgSize) const {
 	const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
 
@@ -76,7 +76,7 @@ void Client::receiveTask() {
 			continue;
 		}
 
-#ifdef USE_GO_CLIENT /* for wireguard windows client */
+#ifdef GENERIC_CLIENTS /* linux or windows clients */
 		message_t rmsg {};
 		char rbuf[1024] {};
 		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
@@ -180,7 +180,7 @@ void Client::receiveTask() {
 			std::cout << "(Client::receiveTask) isPrepared() is false !!!\n";
 #endif
 
-#ifdef USE_GO_CLIENT /* for wireguard windows client */
+#ifdef GENERIC_CLIENTS /* linux or windows clients */
 			message_t rmsg {};
 			char rbuf[1024] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
@@ -232,8 +232,9 @@ void Client::receiveTask() {
 						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
-#ifdef USE_GO_CLIENT
-					if (!parser::parse_Go_message_string(decrypted_message.data(), &rmsg)) {
+#ifdef GENERIC_CLIENTS
+					if (!parser::parse_Go_message_string(
+								reinterpret_cast<char*>(decrypted_message.data()), &rmsg)) {
 #ifdef DEBUG
 						std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
 #endif

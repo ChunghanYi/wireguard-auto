@@ -10,5 +10,6 @@
 
 namespace parser
 {
-	bool parse_Go_message_string(const char* rbuf, message_t* rmsg);
+	//bool parse_Go_message_string(const char* rbuf, message_t* rmsg);
+	bool parse_Go_message_string(char* rbuf, message_t* rmsg);
 }

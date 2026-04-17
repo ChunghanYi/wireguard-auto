@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <cstring>	//for std::memcpy
+#include <cstring>
 #include "inc/client.h"
 #include "inc/message.h"
 #include "inc/common.h"
 #include "inc/sodium_ae.h"
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 #include "inc/parser.h"
 #endif
 
@@ -85,7 +85,7 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	_server.sin_port = htons(port);
 }
 
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 // Let's convert message_t structure to string
 /* Golang client syntax
 	type Message struct {
@@ -157,9 +157,9 @@ std::string convert_message2string(unsigned char* msg, size_t size) {
 }
 #endif
 
-#ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
+#ifndef AUTHENTICATED_ENCRYPTION
 pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 	std::string total_s = convert_message2string(msg, size);
 
 	const char* buf_ptr = total_s.c_str();
@@ -200,7 +200,7 @@ void WgacClient::receiveTask() {
 			continue;
 		}
 
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 		message_t rmsg {};
 		char rbuf[1024] {};
 		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
@@ -236,7 +236,7 @@ pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 #ifdef DEBUG
 		std::cout << "(WgacClient::sendMsg) isPrepared() is false !!!\n";
 #endif
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 		std::string total_s = convert_message2string(msg, size);
 		const char* buf_ptr = total_s.c_str();
 		try {
@@ -259,7 +259,7 @@ pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 #ifdef DEBUG
 		std::cout << "(WgacClient::sendMsg) isPrepared() is true !!!\n";
 #endif
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 		std::string total_s = convert_message2string(msg, size);
 		const char* buf_ptr = total_s.c_str();
 		std::vector<unsigned char> original_message(buf_ptr, buf_ptr + total_s.length());
@@ -306,7 +306,7 @@ void WgacClient::receiveTask() {
 #ifdef DEBUG
 			std::cout << "(WgacClient::receiveTask) isPrepared() is false !!!\n";
 #endif
-#ifdef USE_GO_CLIENT
+#ifdef GENERIC_CLIENTS
 			message_t rmsg {};
 			char rbuf[1024] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
@@ -358,8 +358,9 @@ void WgacClient::receiveTask() {
 						encrypted_message, getPreparePublicKey(), getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
-#ifdef USE_GO_CLIENT
-					if (!parser::parse_Go_message_string(decrypted_message.data(), &rmsg)) {
+#ifdef GENERIC_CLIENTS
+					if (!parser::parse_Go_message_string(
+								reinterpret_cast<char*>(decrypted_message.data()), &rmsg)) {
 #ifdef DEBUG
 						std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
 #endif
