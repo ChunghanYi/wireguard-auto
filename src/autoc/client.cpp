@@ -10,6 +10,9 @@
 #include "inc/message.h"
 #include "inc/common.h"
 #include "inc/sodium_ae.h"
+#ifdef USE_GO_CLIENT
+#include "inc/parser.h"
+#endif
 
 //#define DEBUG
 
@@ -82,8 +85,90 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	_server.sin_port = htons(port);
 }
 
+#ifdef USE_GO_CLIENT
+// Let's convert message_t structure to string
+/* Golang client syntax
+	type Message struct {
+		Msg_type    string  `cmd:=HELLO\n`
+		Mac_addr    string  `macaddr:=00-00-00-00-00-00\n`
+		VpnIP       string  `vpnip:=10.1.1.1\n`
+		VpnNetmask  string  `vpnnetmask:=255.255.255.0\n`
+		Public_key  string  `publickey:=01234567890123456789012345678901234567890123\n`
+		EpIp        string  `epip:=192.168.1.1\n`
+		EpPort      string  `epport:=51280\n`
+		Allowed_ips string  `allowedips:=10.1.1.0/24,192.168.1.0\n
+	}
+*/
+std::string convert_message2string(unsigned char* msg, size_t size) {
+	message_t* smsg = reinterpret_cast<message_t*>(msg);
+	std::string total_s {}, s {};
+	char buffer[512] {};
+
+	if (smsg->type == AUTOCONN::PREPARE)
+		total_s = "cmd:=PREPARE\n";
+	else if (smsg->type == AUTOCONN::HELLO)
+		total_s = "cmd:=HELLO\n";
+	else if (smsg->type == AUTOCONN::PING)
+		total_s = "cmd:=PING\n";
+	else if (smsg->type == AUTOCONN::PONG)
+		total_s = "cmd:=PONG\n";
+	else if (smsg->type == AUTOCONN::OK)
+		total_s = "cmd:=OK\n";
+	else if (smsg->type == AUTOCONN::NOK)
+		total_s = "cmd:=NOK\n";
+	else if (smsg->type == AUTOCONN::BYE)
+		total_s = "cmd:=BYE\n";
+	else
+		total_s = "cmd:=NOK\n";
+
+	snprintf(buffer, sizeof(buffer), "macaddr:=%02X-%02X-%02X-%02X-%02X-%02X\n",
+			smsg->mac_addr[0], smsg->mac_addr[1], smsg->mac_addr[2],
+			smsg->mac_addr[3], smsg->mac_addr[4], smsg->mac_addr[5]);
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "vpnip:=%s\n", inet_ntoa(smsg->vpnIP));
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "vpnnetmask:=%s\n", inet_ntoa(smsg->vpnNetmask));
+	s = buffer;
+	total_s += s;
+
+	std::string pubkey(reinterpret_cast<const char*>(smsg->public_key));
+	total_s = total_s + "publickey:=" + pubkey + "\n";
+
+	snprintf(buffer, sizeof(buffer), "epip:=%s\n", inet_ntoa(smsg->epIP));
+	s = buffer;
+	total_s += s;
+
+	snprintf(buffer, sizeof(buffer), "epport:=%d\n", smsg->epPort);
+	s = buffer;
+	total_s += s;
+
+	std::string allowed(reinterpret_cast<const char*>(smsg->allowed_ips));
+	total_s = total_s + "allowedips:=" + allowed + "\n";
+
+#ifdef DEBUG
+	std::cout << "total_s --------> [" << total_s << "]" << std::endl;
+	std::cout << "length --------> [" << total_s.length() << "]" << std::endl;
+#endif
+	return total_s;
+}
+#endif
+
 #ifdef NO_AUTHENTICATED_ENCRYPTION_METHOD
 pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
+#ifdef USE_GO_CLIENT
+	std::string total_s = convert_message2string(msg, size);
+
+	const char* buf_ptr = total_s.c_str();
+	try {
+		const size_t numBytesSent = ::send(_sockfd.get(), buf_ptr, total_s.length(), 0);
+	} catch (const std::runtime_error &error) {
+		return pipe_ret_t::failure(">>> Oops message sending is failed.");
+	}
+#else
 	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
 	if (numBytesSent < 0) { // send failed
@@ -94,6 +179,7 @@ pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
 		return pipe_ret_t::failure(errorMsg);
 	}
+#endif
 	return pipe_ret_t::success();
 }
 
@@ -114,8 +200,20 @@ void WgacClient::receiveTask() {
 			continue;
 		}
 
-		message_t rmsg;
+#ifdef USE_GO_CLIENT
+		message_t rmsg {};
+		char rbuf[1024] {};
+		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
+		if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
+#ifdef DEBUG
+			std::cout << "(WgacClient::receiveTask()) parse_Go_message_string() is false !!!\n";
+#endif
+			return;
+		}
+#else
+		message_t rmsg {};
 		const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
+#endif
 
 		if (numOfBytesReceived < 1) {
 			std::string errorMsg;
@@ -138,8 +236,16 @@ pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 #ifdef DEBUG
 		std::cout << "(WgacClient::sendMsg) isPrepared() is false !!!\n";
 #endif
+#ifdef USE_GO_CLIENT
+		std::string total_s = convert_message2string(msg, size);
+		const char* buf_ptr = total_s.c_str();
+		try {
+			const size_t numBytesSent = ::send(_sockfd.get(), buf_ptr, total_s.length(), 0);
+		} catch (const std::runtime_error &error) {
+			return pipe_ret_t::failure(">>> Oops message sending is failed.");
+		}
+#else
 		const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
-
 		if (numBytesSent < 0) { // send failed
 			return pipe_ret_t::failure(strerror(errno));
 		}
@@ -148,13 +254,22 @@ pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
 			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
 			return pipe_ret_t::failure(errorMsg);
 		}
+#endif
 	} else { /* PING-PONG protocol stage */
 #ifdef DEBUG
 		std::cout << "(WgacClient::sendMsg) isPrepared() is true !!!\n";
 #endif
+#ifdef USE_GO_CLIENT
+		std::string total_s = convert_message2string(msg, size);
+		const char* buf_ptr = total_s.c_str();
+		std::vector<unsigned char> original_message(buf_ptr, buf_ptr + total_s.length());
+		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+				getPreparePublicKey(), getPrepareSecretKey());
+#else
 		std::vector<unsigned char> original_message(msg, msg + size);
 		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
 				getPreparePublicKey(), getPrepareSecretKey());
+#endif
 
 		const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
 
@@ -191,8 +306,20 @@ void WgacClient::receiveTask() {
 #ifdef DEBUG
 			std::cout << "(WgacClient::receiveTask) isPrepared() is false !!!\n";
 #endif
-			message_t rmsg;
+#ifdef USE_GO_CLIENT
+			message_t rmsg {};
+			char rbuf[1024] {};
+			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
+			if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
+#ifdef DEBUG
+				std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
+#endif
+				return;
+			}
+#else
+			message_t rmsg {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
+#endif
 
 			if (numOfBytesReceived < 1) {
 				std::string errorMsg;
@@ -211,8 +338,8 @@ void WgacClient::receiveTask() {
 #ifdef DEBUG
 			std::cout << "(WgacClient::receiveTask) isPrepared() is true !!!\n";
 #endif
-			message_t rmsg;
-			unsigned char rxbuffer[ENC_MESSAGE_SIZE];
+			message_t rmsg {};
+			unsigned char rxbuffer[ENC_MESSAGE_SIZE] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
 			if (numOfBytesReceived < 1) {
@@ -231,7 +358,16 @@ void WgacClient::receiveTask() {
 						encrypted_message, getPreparePublicKey(), getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
+#ifdef USE_GO_CLIENT
+					if (!parser::parse_Go_message_string(decrypted_message.data(), &rmsg)) {
+#ifdef DEBUG
+						std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
+#endif
+						return;
+					}
+#else
 					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
+#endif
 					/* Let's put this message to <message queue>. */
 					_msgQueue.push(rmsg);
 				}

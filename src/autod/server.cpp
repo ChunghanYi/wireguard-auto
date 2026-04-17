@@ -99,7 +99,7 @@ void WgacServer::clientEventHandler(Client& client, ClientEvent event, const mes
 #ifndef VTYSH
 void WgacServer::init_wireguard() {
 	char szInfo[512] = {};
-	std::string cmd;
+	std::string cmd {};
 	std::string error_text;
 	std::vector<std::string> output_list;
 	bool exec_result;
@@ -153,9 +153,9 @@ void WgacServer::init_wireguard() {
  * Setup wireguard configuration with the wg tool or vtysh.
  */
 void WgacServer::setup_wireguard(const message_t& rmsg) {
-	char szInfo[512] = {};
-	char vpnip_str[32] = {};
-	char epip_str[32] = {};
+	char szInfo[512] {};
+	char vpnip_str[32] {};
+	char epip_str[32] {};
 
 	snprintf(vpnip_str, sizeof(vpnip_str), "%s", inet_ntoa(rmsg.vpnIP));
 	snprintf(epip_str, sizeof(epip_str), "%s", inet_ntoa(rmsg.epIP));
@@ -167,7 +167,7 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
 
 	bool ok_flag = vtyshell::runCommand(szInfo);
 	if (ok_flag) {
-		char xbuf[256];
+		char xbuf[256] {};
 		sprintf(xbuf, "/usr/bin/qrwg/vtysh -e \"write\"");
 		std::system(xbuf);
 	}
@@ -196,7 +196,7 @@ void WgacServer::setup_wireguard(const message_t& rmsg) {
  * Remove a wireguard configuration with the wg tool or vtysh.
  */
 void WgacServer::remove_wireguard(const uint8_t* public_key) {
-	char szInfo[256] = {};
+	char szInfo[256] {};
 
 #ifdef VTYSH
 	sprintf(szInfo, "no wg peer %s", public_key);
@@ -234,7 +234,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 		case AUTOCONN::PREPARE:
 			spdlog::info(">>> PREPARE message received.");
 			{
-				uint8_t key[WG_KEY_LEN];
+				uint8_t key[WG_KEY_LEN] {};
 				if (!key_from_base64(key, reinterpret_cast<const char*>(rmsg.public_key))) {
 					spdlog::warn("Public key is not the correct length or format");
 					send_NOK(client);
@@ -255,7 +255,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 		case AUTOCONN::HELLO:
 			spdlog::info(">>> HELLO message received.");
 			if (add_peer_table(rmsg)) {
-				message_t smsg{};
+				message_t smsg {};
 				smsg.type = AUTOCONN::HELLO;
 				std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 
@@ -333,7 +333,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 		case AUTOCONN::BYE:
 			spdlog::info(">>> BYE message received.");
 			if (remove_peer_table(rmsg)) {
-				message_t smsg{};
+				message_t smsg {};
 				smsg.type = AUTOCONN::BYE;
 				std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 				std::memcpy(smsg.public_key,
@@ -351,7 +351,7 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 
 		default:
 			spdlog::info(">>> UNKNOWN message received.");
-			message_t smsg{};
+			message_t smsg {};
 			smsg.type = AUTOCONN::BYE;
 			std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
 			std::memcpy(smsg.public_key,
@@ -534,16 +534,9 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
 	return sendToClient(client, msg, size);
 }
 
-/**
- * Send message to specific client (determined by client IP address) with OK or NOK string.
- */
-bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
-	message_t smsg;
-	std::memcpy(&smsg, &msg, sizeof(message_t));
-
-#ifdef USE_GO_CLIENT /* for wireguard windows client */
-	/* Let's convert message_t structure to C++ string */
-	/* Golang syntax
+#ifdef USE_GO_CLIENT
+// Let's convert message_t structure to string
+/* Golang syntax
 	type Message struct {
 		Msg_type    string  `cmd:=HELLO\n`
 		Mac_addr    string  `macaddr:=00-00-00-00-00-00\n`
@@ -554,12 +547,14 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 		EpPort      string  `epport:=51280\n`
 		Allowed_ips string  `allowedips:=10.1.1.0/24,192.168.1.0\n
 	}
-	*/
+*/
+std::string convert_message2string(const message_t& msg, size_t size) {
+	std::string total_s {}, s {};
+	char buffer[512] {};
 
-	std::string total_s, s;
-	char buffer[512];
-
-	if (msg.type == AUTOCONN::HELLO)
+	if (msg.type == AUTOCONN::PREPARE)
+		total_s = "cmd:=PREPARE\n";
+	else if (msg.type == AUTOCONN::HELLO)
 		total_s = "cmd:=HELLO\n";
 	else if (msg.type == AUTOCONN::PING)
 		total_s = "cmd:=PING\n";
@@ -607,8 +602,17 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 	std::cout << "length --------> [" << total_s.length() << "]" << std::endl;
 #endif
 
-	const char* buf_ptr = total_s.c_str();
+	return total_s;
+}
+#endif
 
+/**
+ * Send message to specific client (determined by client IP address) with OK or NOK string.
+ */
+bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
+#ifdef USE_GO_CLIENT /* for wireguard windows client */
+	std::string total_s = convert_message2string(msg, sizeof(message_t));
+	const char* buf_ptr = total_s.c_str();
 	try {
 		client.send(buf_ptr, total_s.length());
 	} catch (const std::runtime_error &error) {
@@ -616,6 +620,8 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 		return false;
 	}
 #else
+	message_t smsg {};
+	std::memcpy(&smsg, &msg, sizeof(message_t));
 	try {
 		client.send(reinterpret_cast<const char *>(&smsg), sizeof(smsg));
 	} catch (const std::runtime_error &error) {

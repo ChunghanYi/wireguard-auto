@@ -77,12 +77,17 @@ void Client::receiveTask() {
 		}
 
 #ifdef USE_GO_CLIENT /* for wireguard windows client */
-		message_t rmsg;
-		char rbuf[1024];
+		message_t rmsg {};
+		char rbuf[1024] {};
 		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-		parser::parse_Go_message_string(rbuf, &rmsg);
+		if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
+#ifdef DEBUG
+			std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
+#endif
+			return;
+		}
 #else
-		message_t rmsg;
+		message_t rmsg {};
 		const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
 #endif
 
@@ -176,12 +181,17 @@ void Client::receiveTask() {
 #endif
 
 #ifdef USE_GO_CLIENT /* for wireguard windows client */
-			message_t rmsg;
-			char rbuf[1024];
+			message_t rmsg {};
+			char rbuf[1024] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-			parser::parse_Go_message_string(rbuf, &rmsg);
+			if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
+#ifdef DEBUG
+				std::cout << "Client::receiveTask() parse_Go_message_string() is false !!!\n";
+#endif
+				return;
+			}
 #else
-			message_t rmsg;
+			message_t rmsg {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
 #endif
 			if (numOfBytesReceived < 1) {
@@ -201,8 +211,8 @@ void Client::receiveTask() {
 #ifdef DEBUG
 			std::cout << "(Client::receiveTask) isPrepared() is true !!!\n";
 #endif
-			message_t rmsg;
-			unsigned char rxbuffer[ENC_MESSAGE_SIZE];
+			message_t rmsg {};
+			unsigned char rxbuffer[ENC_MESSAGE_SIZE] {};
 			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
 
 			if (numOfBytesReceived < 1) {
@@ -222,7 +232,16 @@ void Client::receiveTask() {
 						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
 						decrypt_failure);
 				if (!decrypt_failure) {
+#ifdef USE_GO_CLIENT
+					if (!parser::parse_Go_message_string(decrypted_message.data(), &rmsg)) {
+#ifdef DEBUG
+						std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
+#endif
+						return;
+					}
+#else
 					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
+#endif
 					publishEvent(ClientEvent::INCOMING_MSG, rmsg);
 				} else {
 					message_t smsg{};
