@@ -42,7 +42,7 @@ add_definitions(-DVTYSH)
 #for server only
 add_definitions(-DREDIS)
 add_definitions(-DGENERIC_CLIENTS)
-add_definitions(-DAUTHENTICATED_ENCRYPTION)
+#add_definitions(-DAUTHENTICATED_ENCRYPTION)
 
 #server ---------------------------------------------------------------------------
 add_executable(wg_autod
