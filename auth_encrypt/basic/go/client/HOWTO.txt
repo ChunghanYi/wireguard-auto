@@ -1,0 +1,4 @@
+go mod init client
+go mod tidy
+go get golang.org/x/crypto/nacl/box
+go build
