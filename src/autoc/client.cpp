@@ -10,9 +10,9 @@
 #include "inc/message.h"
 #include "inc/common.h"
 #include "inc/sodium_ae.h"
-#ifdef GENERIC_CLIENTS
+#include <sodium.h>
 #include "inc/parser.h"
-#endif
+#include "spdlog/spdlog.h"
 
 //#define DEBUG
 
@@ -41,7 +41,6 @@ pipe_ret_t WgacClient::connectTo(const std::string& address, unsigned short port
 		return pipe_ret_t::failure(strerror(errno));
 	}
 
-	startReceivingMessages();
 	_isConnected = true;
 	_isClosed = false;
 
@@ -58,9 +57,7 @@ void WgacClient::initializeSocket() {
 	_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
 	const bool socketFailed = (_sockfd.get() == -1);
 	if (socketFailed) {
-#ifdef DEBUG
-		std::cout << "(WgacClient::initializeSocket() socket failed !!!\n";
-#endif
+		spdlog::error("socket failed");
 		throw std::runtime_error(strerror(errno));
 	}
 }
@@ -73,9 +70,7 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 		struct hostent* host;
 		struct in_addr** addrList;
 		if ((host = gethostbyname(address.c_str())) == nullptr) {
-#ifdef DEBUG
-			std::cout << "(WgacClient::setAddress() gethostbyname !!!\n";
-#endif
+			spdlog::error("gethostbyname faield");
 			throw std::runtime_error("Failed to resolve hostname");
 		}
 		addrList = (struct in_addr**) host->h_addr_list;
@@ -85,7 +80,6 @@ void WgacClient::setAddress(const std::string& address, unsigned short port) {
 	_server.sin_port = htons(port);
 }
 
-#ifdef GENERIC_CLIENTS
 // Let's convert message_t structure to string
 /* Golang client syntax
 	type Message struct {
@@ -104,9 +98,7 @@ std::string convert_message2string(unsigned char* msg, size_t size) {
 	std::string total_s {}, s {};
 	char buffer[512] {};
 
-	if (smsg->type == AUTOCONN::PREPARE)
-		total_s = "cmd:=PREPARE\n";
-	else if (smsg->type == AUTOCONN::HELLO)
+	if (smsg->type == AUTOCONN::HELLO)
 		total_s = "cmd:=HELLO\n";
 	else if (smsg->type == AUTOCONN::PING)
 		total_s = "cmd:=PING\n";
@@ -149,75 +141,124 @@ std::string convert_message2string(unsigned char* msg, size_t size) {
 	std::string allowed(reinterpret_cast<const char*>(smsg->allowed_ips));
 	total_s = total_s + "allowedips:=" + allowed + "\n";
 
-#ifdef DEBUG
-	std::cout << "total_s --------> [" << total_s << "]" << std::endl;
-	std::cout << "length --------> [" << total_s.length() << "]" << std::endl;
-#endif
 	return total_s;
 }
-#endif
 
-#ifndef AUTHENTICATED_ENCRYPTION
+#ifdef AUTHENTICATED_ENCRYPTION
+//Authenticated encryption routines
+/**
+ * Send a message to server
+ */
 pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
-#ifdef GENERIC_CLIENTS
 	std::string total_s = convert_message2string(msg, size);
-
 	const char* buf_ptr = total_s.c_str();
-	try {
-		const size_t numBytesSent = ::send(_sockfd.get(), buf_ptr, total_s.length(), 0);
-	} catch (const std::runtime_error &error) {
-		return pipe_ret_t::failure(">>> Oops message sending is failed.");
-	}
-#else
-	const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
 
-	if (numBytesSent < 0) { // send failed
+	std::vector<unsigned char> original_message(buf_ptr, buf_ptr + total_s.length());
+	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+			getPreparePublicKey(), getPrepareSecretKey());
+
+	const size_t sent_bytes = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+
+	if (sent_bytes < 0) { // send failed
 		return pipe_ret_t::failure(strerror(errno));
 	}
-	if (numBytesSent < size) { // not all bytes were sent
+	if (sent_bytes < encrypted_message.size()) { // not all bytes were sent
 		char errorMsg[100];
-		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
+		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", sent_bytes, encrypted_message.size());
 		return pipe_ret_t::failure(errorMsg);
 	}
-#endif
 	return pipe_ret_t::success();
 }
 
 /*
- * Receive server packets, and notify user
+ * Thread routine: Receive a message from server
  */
 void WgacClient::receiveTask() {
 	while(_isConnected) {
 		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
 
 		if (waitResult == fd_wait::Result::FAILURE) {
-#ifdef DEBUG
-			std::cout << "(WgacClient::receiveTask() fd_wait::Result::FAILURE !!!\n";
-#endif
+			spdlog::info("fd_wait::Result::FAILURE !!!");
 			_isConnected = false;
 			return;
 		} else if (waitResult == fd_wait::Result::TIMEOUT) {
 			continue;
 		}
 
-#ifdef GENERIC_CLIENTS
-		message_t rmsg {};
-		char rbuf[1024] {};
-		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-		if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-			std::cout << "(WgacClient::receiveTask()) parse_Go_message_string() is false !!!\n";
-#endif
+		unsigned char recv_buf[1024] {};
+		const size_t received_bytes = recv(_sockfd.get(), recv_buf, sizeof(recv_buf), 0);
+		if (received_bytes < 1) {
+			std::string errorMsg;
+			if (received_bytes == 0) { //server closed connection
+				errorMsg = "Server closed connection";
+			} else {
+				errorMsg = strerror(errno);
+			}
+			_isConnected = false;
 			return;
 		}
-#else
-		message_t rmsg {};
-		const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
-#endif
 
-		if (numOfBytesReceived < 1) {
+		std::vector<unsigned char> encrypted_message(recv_buf, recv_buf + received_bytes);
+		bool decrypt_failure = false;
+		std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
+				encrypted_message, getPreparePublicKey(), getPrepareSecretKey(), decrypt_failure);
+		if (!decrypt_failure) {
+			char xbuf[1024] {};
+			message_t rmsg {};
+			memcpy(xbuf, reinterpret_cast<char*>(decrypted_message.data()),
+					decrypted_message.size() * sizeof(unsigned char));
+			if (!parser::parse_new_message_string(xbuf, &rmsg)) {
+				spdlog::error("Failed to parse message string");
+				return;
+			}
+			/* Let's put this message to <message queue>. */
+			_msgQueue.push(rmsg);
+		}
+	}
+}
+#else //======================================================================================
+//No authenticated encryption routines
+/**
+ * Send a message to server
+ */
+pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
+	std::string total_s = convert_message2string(msg, size);
+
+	const char* buf_ptr = total_s.c_str();
+	try {
+		const size_t sent_bytes = ::send(_sockfd.get(), buf_ptr, total_s.length(), 0);
+	} catch (const std::runtime_error &error) {
+		return pipe_ret_t::failure(">>> Oops message sending is failed.");
+	}
+	return pipe_ret_t::success();
+}
+
+/**
+ * Thread routine: Receive a message from server
+ */
+void WgacClient::receiveTask() {
+	while(_isConnected) {
+		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
+
+		if (waitResult == fd_wait::Result::FAILURE) {
+			spdlog::info("fd_wait::Result::FAILURE !!!");
+			_isConnected = false;
+			return;
+		} else if (waitResult == fd_wait::Result::TIMEOUT) {
+			continue;
+		}
+
+		message_t rmsg {};
+		char recv_buf[1024] {};
+		const size_t received_bytes = recv(_sockfd.get(), recv_buf, sizeof(recv_buf), 0);
+		if (!parser::parse_new_message_string(recv_buf, &rmsg)) {
+			spdlog::error("Failed to parse message string");
+			return;
+		}
+
+		if (received_bytes < 1) {
 			std::string errorMsg;
-			if (numOfBytesReceived == 0) { //server closed connection
+			if (received_bytes == 0) { //server closed connection
 				errorMsg = "Server closed connection";
 			} else {
 				errorMsg = strerror(errno);
@@ -230,155 +271,7 @@ void WgacClient::receiveTask() {
 		}
 	}
 }
-#else /* AE(Authenticated Encryption) method that has <PREPARE> stage additionally. */
-pipe_ret_t WgacClient::sendMsg(unsigned char* msg, size_t size) {
-	if (!isPrepared()) { /* PREPARE stage */
-#ifdef DEBUG
-		std::cout << "(WgacClient::sendMsg) isPrepared() is false !!!\n";
-#endif
-#ifdef GENERIC_CLIENTS
-		std::string total_s = convert_message2string(msg, size);
-		const char* buf_ptr = total_s.c_str();
-		try {
-			const size_t numBytesSent = ::send(_sockfd.get(), buf_ptr, total_s.length(), 0);
-		} catch (const std::runtime_error &error) {
-			return pipe_ret_t::failure(">>> Oops message sending is failed.");
-		}
-#else
-		const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
-		if (numBytesSent < 0) { // send failed
-			return pipe_ret_t::failure(strerror(errno));
-		}
-		if (numBytesSent < size) { // not all bytes were sent
-			char errorMsg[100];
-			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
-			return pipe_ret_t::failure(errorMsg);
-		}
-#endif
-	} else { /* PING-PONG protocol stage */
-#ifdef DEBUG
-		std::cout << "(WgacClient::sendMsg) isPrepared() is true !!!\n";
-#endif
-#ifdef GENERIC_CLIENTS
-		std::string total_s = convert_message2string(msg, size);
-		const char* buf_ptr = total_s.c_str();
-		std::vector<unsigned char> original_message(buf_ptr, buf_ptr + total_s.length());
-		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
-				getPreparePublicKey(), getPrepareSecretKey());
-#else
-		std::vector<unsigned char> original_message(msg, msg + size);
-		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
-				getPreparePublicKey(), getPrepareSecretKey());
-#endif
-
-		const size_t numBytesSent = send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
-
-		if (numBytesSent < 0) { // send failed
-			return pipe_ret_t::failure(strerror(errno));
-		}
-		if (numBytesSent < encrypted_message.size()) { // not all bytes were sent
-			char errorMsg[100];
-			sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, encrypted_message.size());
-			return pipe_ret_t::failure(errorMsg);
-		}
-	}
-	return pipe_ret_t::success();
-}
-
-/*
- * Receive server packets, and notify user
- */
-void WgacClient::receiveTask() {
-	while(_isConnected) {
-		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
-
-		if (waitResult == fd_wait::Result::FAILURE) {
-#ifdef DEBUG
-			std::cout << "(WgacClient::receiveTask() fd_wait::Result::FAILURE !!!\n";
-#endif
-			_isConnected = false;
-			return;
-		} else if (waitResult == fd_wait::Result::TIMEOUT) {
-			continue;
-		}
-
-		if (!isPrepared()) { /* PREPARE stage */
-#ifdef DEBUG
-			std::cout << "(WgacClient::receiveTask) isPrepared() is false !!!\n";
-#endif
-#ifdef GENERIC_CLIENTS
-			message_t rmsg {};
-			char rbuf[1024] {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-			if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-				std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
-#endif
-				return;
-			}
-#else
-			message_t rmsg {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
-#endif
-
-			if (numOfBytesReceived < 1) {
-				std::string errorMsg;
-				if (numOfBytesReceived == 0) { //server closed connection
-					errorMsg = "Server closed connection";
-				} else {
-					errorMsg = strerror(errno);
-				}
-				_isConnected = false;
-				return;
-			} else {
-				/* Let's put this message to <message queue>. */
-				_msgQueue.push(rmsg);
-			}
-		} else { /* PING-PONG protocol stage */
-#ifdef DEBUG
-			std::cout << "(WgacClient::receiveTask) isPrepared() is true !!!\n";
-#endif
-			message_t rmsg {};
-			unsigned char rxbuffer[1024] {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
-
-			if (numOfBytesReceived < 1) {
-				std::string errorMsg;
-				if (numOfBytesReceived == 0) { //server closed connection
-					errorMsg = "Server closed connection";
-				} else {
-					errorMsg = strerror(errno);
-				}
-				_isConnected = false;
-				return;
-			} else {
-				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
-				bool decrypt_failure = false;
-				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-						encrypted_message, getPreparePublicKey(), getPrepareSecretKey(),
-						decrypt_failure);
-				if (!decrypt_failure) {
-#ifdef GENERIC_CLIENTS
-					char rbuf[1024] {};
-					memcpy(rbuf, reinterpret_cast<char*>(decrypted_message.data()),
-							decrypted_message.size() * sizeof(unsigned char));
-					if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-						std::cout << "(WgacClient::receiveTask) parse_Go_message_string() is false !!!\n";
-#endif
-						return;
-					}
-#else
-					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));	//TBD: w/o memcpy
-#endif
-					/* Let's put this message to <message queue>. */
-					_msgQueue.push(rmsg);
-				}
-			}
-		}
-	}
-}
-#endif
+#endif //======================================================================================
 
 void WgacClient::terminateReceiveThread() {
 	_isConnected = false;

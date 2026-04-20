@@ -15,6 +15,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include <sodium.h>
 #include "inc/message.h"
 #include "inc/client.h"
 #include "inc/configuration.h"
@@ -44,6 +45,26 @@ void get_local_mac_address(char* macaddr) {
 	}
 }
 
+bool send_all(int sock, const uint8_t* data, size_t len) {
+	size_t sent = 0;
+	while (sent < len) {
+		ssize_t res = ::send(sock, data + sent, len - sent, 0);
+		if (res <= 0) return false;
+		sent += res;
+	}
+	return true;
+}
+
+bool recv_all(int sock, uint8_t* data, size_t len) {
+	size_t received = 0;
+	while (received < len) {
+		ssize_t res = ::recv(sock, data + received, len - received, 0);
+		if (res <= 0) return false;
+		received += res;
+	}
+	return true;
+}
+
 /**
  * Initialize a message with the given fields
  */
@@ -56,63 +77,9 @@ static inline void init_smsg(message_t* smsg, enum AUTOCONN type, uint32_t ip, u
 }
 
 /**
- * Send a PREPARE message and receive an PREPARE/NOK message
- */
-bool WgacClient::send_prepare_message(enum AUTOCONN& flag) {
-	setPrepared(false);
-
-	message_t smsg;
-	init_smsg(&smsg, AUTOCONN::PREPARE, 0, 0);
-	std::memcpy(smsg.public_key, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-
-	pipe_ret_t sendRet = sendMsg(reinterpret_cast<unsigned char*>(&smsg), sizeof(message_t));
-	if (!sendRet.isSuccessful()) {
-		spdlog::debug(">>> Failed to send message.");
-		return false;
-	} else {
-		spdlog::info(">>> PREPARE message sent to server.");
-	}
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-	//Receive the PREPARE message from server
-	message_t rmsg;
-	if (handle_message_queue(&rmsg)) {
-		if (rmsg.type == AUTOCONN::PREPARE) {
-			spdlog::info("<<< PREPARE message received.");
-
-			uint8_t key[WG_KEY_LEN];
-			if (!key_from_base64(key, reinterpret_cast<const char*>(rmsg.public_key))) {
-				spdlog::info("Public key is not the correct length or format");
-				setPrepared(false);
-				return false;
-			}
-			setPreparePublicKey(key); /* server public key */
-			setPrepared(true);
-			spdlog::info("--- Preparation key received from server.");
-			return true;
-		} else if (rmsg.type == AUTOCONN::BYE) {
-			spdlog::info("<<< OMG! BYE message received.");
-			_isConnected = false;
-			setPrepared(false);
-			flag = AUTOCONN::BYE;
-			return false;
-		} else {
-			spdlog::info("<<< Oops, PREPARE message NOT received.");
-			setPrepared(false);
-			return false;
-		}
-	} else {
-		spdlog::info("<<< No message has arrived.");
-		setPrepared(false);
-		return false;
-	}
-}
-
-/**
  * Send a HELLO message and receive an HELLO/NOK message
  */
-bool WgacClient::send_hello_message() {
+bool WgacClient::send_hello_message(enum AUTOCONN& flag) {
 	message_t smsg;
 
 	init_smsg(&smsg, AUTOCONN::HELLO, 0, 0);
@@ -153,13 +120,17 @@ bool WgacClient::send_hello_message() {
 
 			spdlog::info("--- vpnIP({}/{}) received from server.", value1, value2);
 			return true;
+		} else if (rmsg.type == AUTOCONN::BYE) {
+			spdlog::info("<<< OMG! BYE message received.");
+			_isConnected = false;
+			flag = AUTOCONN::BYE;
+			return false;
 		} else {
 			spdlog::info("<<< Oops, HELLO message NOT received.");
 			return false;
 		}
 	} else {
 		spdlog::info("<<< No message has arrived.");
-		setPrepared(false);
 		return false;
 	}
 }
@@ -211,7 +182,6 @@ bool WgacClient::send_ping_message(message_t* pmsg) {
 		}
 	} else {
 		spdlog::info("<<< No message has arrived.");
-		setPrepared(false);
 		return false;
 	}
 }
@@ -439,15 +409,42 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
 void WgacClient::start() {
 	message_t rmsg;
 	int count {};
-	enum AUTOCONN flag { AUTOCONN::PREPARE };
+	enum AUTOCONN flag { AUTOCONN::HELLO };
 
+	//step#1: Let's exchange public key
+	uint8_t client_pk_base64[WG_KEY_LEN_BASE64];
+	std::memcpy(client_pk_base64, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+
+	if (!send_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64))) {
+		std::cerr << "Client public key transmission failed" << std::endl;
+		return;
+	}
+	//std::cout << "client_pk_base64 --> " << client_pk_base64 << std::endl;
+
+	uint8_t server_pk_base64[WG_KEY_LEN_BASE64];
+	if (!recv_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64))) {
+		std::cerr << "Server public key reception failed" << std::endl;
+		return;
+	}
+	//std::cout << "server_pk_base64 --> " << server_pk_base64 << std::endl;
+
+	uint8_t server_pk[crypto_box_PUBLICKEYBYTES];
+	if (!key_from_base64(server_pk, reinterpret_cast<const char*>(server_pk_base64))) {
+		std::cerr << "Public key is not the correct length or format" << std::endl;
+		return;
+	}
+	setPreparePublicKey(server_pk); /* server public key */
+
+	//step#2: Start receiveTask thread
+	startReceivingMessages();
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+	//step#3: Send PING-PONG messages
 	while (1) {
-		if (send_prepare_message(flag)) {         /* <PREPARE> stage */
-			if (send_hello_message()) {       /* PING-PING protocol stage */
-				if (send_ping_message(&rmsg)) {
-					setup_wireguard(&rmsg);	  /* wireguard setup stage */
-					break;
-				}
+		if (send_hello_message(flag)) {   /* PING-PING protocol stage */
+			if (send_ping_message(&rmsg)) {
+				setup_wireguard(&rmsg);	  /* wireguard setup stage */
+				break;
 			}
 		} else {
 			if (flag == AUTOCONN::BYE) break;

@@ -17,11 +17,31 @@
 #include "inc/common.h"
 #include "inc/message.h"
 #include "inc/sodium_ae.h"
-#ifdef GENERIC_CLIENTS
+#include <sodium.h>
 #include "inc/parser.h"
-#endif
+#include "spdlog/spdlog.h"
 
 //#define DEBUG
+
+bool send_all(int sock, const uint8_t* data, size_t len) {
+	size_t sent = 0;
+	while (sent < len) {
+		ssize_t res = ::send(sock, data + sent, len - sent, 0);
+		if (res <= 0) return false;
+		sent += res;
+	}
+	return true;
+}
+
+bool recv_all(int sock, uint8_t* data, size_t len) {
+	size_t received = 0;
+	while (received < len) {
+		ssize_t res = ::recv(sock, data + received, len - received, 0);
+		if (res <= 0) return false;
+		received += res;
+	}
+	return true;
+}
 
 Client::Client(int fileDescriptor) {
 	_sockfd.set(fileDescriptor);
@@ -46,25 +66,131 @@ void Client::startListen() {
 #endif
 }
 
-#ifndef AUTHENTICATED_ENCRYPTION
-void Client::send(const char* msg, size_t msgSize) const {
-	const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
+#ifdef AUTHENTICATED_ENCRYPTION //======================================================================
+//Authenticated encryption routines
+/**
+ * Send a message to client
+ */
+void Client::send(const char* msg, size_t msg_len) const {
+	std::vector<unsigned char> original_message(msg, msg + msg_len);
+	std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
+			getPreparePublicKey(), wgacsPtr->getPrepareSecretKey());
 
-	const bool sendFailed = (numBytesSent < 0);
-	if (sendFailed) {
+	const size_t sent_bytes = ::send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
+	if (sent_bytes < 0 || sent_bytes < encrypted_message.size()) {
+		spdlog::error("sent_bytes < 0 || sent_bytes < encrypted_message.size() !!!");
+		return;
+	}
+}
+
+/**
+ * Thread routine: Receive a message from client
+ */
+void Client::receiveTask() {
+	//step#1: Let's exchange public key
+	uint8_t client_pk_base64[WG_KEY_LEN_BASE64];
+	if (!recv_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64))) {
+		std::cerr << "Client public key reception failed" << std::endl;
+		setConnected(false);
+		return;
+	}
+	//std::cout << "client_pk_base64 --> " << client_pk_base64 << std::endl;
+
+	uint8_t client_pk[crypto_box_PUBLICKEYBYTES];
+	if (!key_from_base64(client_pk, reinterpret_cast<const char*>(client_pk_base64))) {
+		std::cerr << "Public key is not the correct length or format" << std::endl;
+		setConnected(false);
+		return;
+	} else {
+		setPreparePublicKey(client_pk);
+
+		uint8_t server_pk_base64[WG_KEY_LEN_BASE64];
+		std::memcpy(server_pk_base64,
+				wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+
+		if (!send_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64))) {
+			std::cerr << "Server public key transmission failed" << std::endl;
+			setConnected(false);
+			return;
+		}
+		//std::cout << "server_pk_base64 --> " << server_pk_base64 << std::endl;
+	}
+
+	/* step#2: PING-PONG Protocol */
+	while (isConnected()) {
+		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
+
+		if (waitResult == fd_wait::Result::FAILURE) {
+			setConnected(false);
+			return;
+		} else if (waitResult == fd_wait::Result::TIMEOUT) {
+			continue;
+		}
+
+		message_t rmsg {};
+		unsigned char recv_buf[1024] {};
+		const size_t received_bytes = recv(_sockfd.get(), recv_buf, sizeof(recv_buf), 0);
+
+		if (received_bytes < 1) {
+			const bool clientClosedConnection = (received_bytes == 0);
+			if (clientClosedConnection) {
+				rmsg.type = AUTOCONN::OK;
+			} else {
+				rmsg.type = AUTOCONN::NOK;
+			}
+			setConnected(false);
+			publishEvent(ClientEvent::DISCONNECTED, rmsg);
+			return;
+		}
+
+		bool decrypt_failure = false;
+		std::vector<unsigned char> encrypted_message(recv_buf, recv_buf + received_bytes);
+		std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
+				encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
+				decrypt_failure);
+		if (!decrypt_failure) {
+			char recv_buf[1024] {};
+			memcpy(recv_buf, reinterpret_cast<char*>(decrypted_message.data()),
+					decrypted_message.size() * sizeof(unsigned char)); 
+			if (!parser::parse_new_message_string(recv_buf, &rmsg)) {
+				spdlog::error("Failed to parse message string");
+				return;
+			}
+
+			publishEvent(ClientEvent::INCOMING_MSG, rmsg);
+		} else {
+			message_t smsg{};
+			smsg.type = AUTOCONN::BYE;
+			std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
+			std::memcpy(smsg.public_key,
+					wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
+			wgacsPtr->send_BYE(*this, smsg);
+
+			setConnected(false);
+		}
+	}
+}
+#else //=================================================================================
+//No authenticated encryption routines
+/**
+ * Send a message to client
+ */
+void Client::send(const char* msg, size_t msg_len) const {
+	const size_t sent_bytes = ::send(_sockfd.get(), (const char *)msg, msg_len, 0);
+
+	if (sent_bytes < 0) {
 		throw std::runtime_error(strerror(errno));
 	}
 
-	const bool notAllBytesWereSent = (numBytesSent < msgSize);
-	if (notAllBytesWereSent) {
+	if (sent_bytes < msg_len) {
 		char errorMsg[100];
-		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, msgSize);
+		sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", sent_bytes, msg_len);
 		throw std::runtime_error(errorMsg);
 	}
 }
 
 /**
- * Receive client packets, and notify user
+ * Thread routine: Receive a message from client
  */
 void Client::receiveTask() {
 	while (isConnected()) {
@@ -76,23 +202,16 @@ void Client::receiveTask() {
 			continue;
 		}
 
-#ifdef GENERIC_CLIENTS /* linux or windows clients */
 		message_t rmsg {};
-		char rbuf[1024] {};
-		const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-		if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-			std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
-#endif
+		char recv_buf[1024] {};
+		const size_t received_bytes = recv(_sockfd.get(), recv_buf, sizeof(recv_buf), 0);
+		if (!parser::parse_new_message_string(recv_buf, &rmsg)) {
+			spdlog::error("Failed to parse message string");
 			return;
 		}
-#else
-		message_t rmsg {};
-		const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
-#endif
 
-		if (numOfBytesReceived < 1) {
-			const bool clientClosedConnection = (numOfBytesReceived == 0);
+		if (received_bytes < 1) {
+			const bool clientClosedConnection = (received_bytes == 0);
 			if (clientClosedConnection) {
 				rmsg.type = AUTOCONN::OK;
 			} else {
@@ -106,149 +225,7 @@ void Client::receiveTask() {
 		}
 	}
 }
-#else /* AE(Authenticated Encryption) method that has <PREPARE> stage additionally. */
-void Client::send(const char* msg, size_t msgSize) const {
-	if (!isPrepared()) { /* PREPARE stage */
-#ifdef DEBUG
-		std::cout << "(Client::send) isPrepared() is false !!!\n";
-#endif
-
-		const size_t numBytesSent = ::send(_sockfd.get(), (const char *)msg, msgSize, 0);
-		const bool sendFailed = (numBytesSent < 0);
-		if (sendFailed) {
-			std::cout << "(Client::send) send failed#1.\n";
-			return;
-		}
-
-		const bool notAllBytesWereSent = (numBytesSent < msgSize);
-		if (notAllBytesWereSent) {
-			std::cout << "(Client::send) send failed#2.\n";
-			return;
-		}
-	} else { /* PING-PONG protocol stage */
-#ifdef DEBUG
-		std::cout << "(Client::send) isPrepared() is true !!!\n";
-#endif
-		std::vector<unsigned char> original_message(msg, msg + msgSize);
-		std::vector<unsigned char> encrypted_message = sodium_ae::encrypt_message(original_message,
-				getPreparePublicKey(), wgacsPtr->getPrepareSecretKey());
-
-		const size_t numBytesSent = ::send(_sockfd.get(), encrypted_message.data(), encrypted_message.size(), 0);
-
-		const bool sendFailed = (numBytesSent < 0);
-		if (sendFailed) {
-			std::cout << "(Client::send) send failed#3.\n";
-			return;
-		}
-
-		const bool notAllBytesWereSent = (numBytesSent < encrypted_message.size());
-		if (notAllBytesWereSent) {
-			std::cout << "(Client::send) send failed#4.\n";
-			return;
-		}
-	}
-}
-
-/**
- * Receive client packets, and notify user
- */
-void Client::receiveTask() {
-	while (isConnected()) {
-		const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
-
-		if (waitResult == fd_wait::Result::FAILURE) {
-			setConnected(false);
-			return;
-		} else if (waitResult == fd_wait::Result::TIMEOUT) {
-			continue;
-		}
-
-		if (!isPrepared()) { /* PREPARE stage */
-#ifdef DEBUG
-			std::cout << "(Client::receiveTask) isPrepared() is false !!!\n";
-#endif
-
-#ifdef GENERIC_CLIENTS /* linux or windows clients */
-			message_t rmsg {};
-			char rbuf[1024] {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), rbuf, sizeof(rbuf), 0);
-			if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-				std::cout << "Client::receiveTask() parse_Go_message_string() is false !!!\n";
-#endif
-				return;
-			}
-#else
-			message_t rmsg {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), &rmsg, sizeof(rmsg), 0);
-#endif
-			if (numOfBytesReceived < 1) {
-				const bool clientClosedConnection = (numOfBytesReceived == 0);
-				if (clientClosedConnection) {
-					rmsg.type = AUTOCONN::OK;
-				} else {
-					rmsg.type = AUTOCONN::NOK;
-				}
-				setConnected(false);
-				publishEvent(ClientEvent::DISCONNECTED, rmsg);
-				return;
-			} else {
-				publishEvent(ClientEvent::INCOMING_MSG, rmsg);
-			}
-		} else { /* PING-PONG protocol stage */
-#ifdef DEBUG
-			std::cout << "(Client::receiveTask) isPrepared() is true !!!\n";
-#endif
-			message_t rmsg {};
-			unsigned char rxbuffer[1024] {};
-			const size_t numOfBytesReceived = recv(_sockfd.get(), rxbuffer, sizeof(rxbuffer), 0);
-
-			if (numOfBytesReceived < 1) {
-				const bool clientClosedConnection = (numOfBytesReceived == 0);
-				if (clientClosedConnection) {
-					rmsg.type = AUTOCONN::OK;
-				} else {
-					rmsg.type = AUTOCONN::NOK;
-				}
-				setConnected(false);
-				publishEvent(ClientEvent::DISCONNECTED, rmsg);
-				return;
-			} else {
-				bool decrypt_failure = false;
-				std::vector<unsigned char> encrypted_message(rxbuffer, rxbuffer + numOfBytesReceived);
-				std::vector<unsigned char> decrypted_message = sodium_ae::decrypt_message(
-						encrypted_message, getPreparePublicKey(), wgacsPtr->getPrepareSecretKey(),
-						decrypt_failure);
-				if (!decrypt_failure) {
-#ifdef GENERIC_CLIENTS
-					char rbuf[1024] {};
-					memcpy(rbuf, reinterpret_cast<char*>(decrypted_message.data()),
-							decrypted_message.size() * sizeof(unsigned char)); 
-					if (!parser::parse_Go_message_string(rbuf, &rmsg)) {
-#ifdef DEBUG
-						std::cout << "(Client::receiveTask) parse_Go_message_string() is false !!!\n";
-#endif
-						return;
-					}
-#else
-					std::memcpy(&rmsg, decrypted_message.data(), sizeof(rmsg));  //TBD: w/o memcpy
-#endif
-					publishEvent(ClientEvent::INCOMING_MSG, rmsg);
-				} else {
-					message_t smsg{};
-					smsg.type = AUTOCONN::BYE;
-					std::memcpy(smsg.mac_addr, rmsg.mac_addr, 6);
-					std::memcpy(smsg.public_key,
-							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-					wgacsPtr->send_BYE(*this, smsg);
-
-					setConnected(false);
-				}
-			}
-		}
-	}
-}
-#endif
+#endif //=================================================================================
 
 /**
  * Send a reply message to client

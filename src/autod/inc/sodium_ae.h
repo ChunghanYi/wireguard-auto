@@ -17,7 +17,7 @@ namespace sodium_ae
 	std::vector<unsigned char> encrypt_message(const std::vector<unsigned char>& message,
 		const std::vector<unsigned char>& receiver_public_key,
 		const std::vector<unsigned char>& sender_secret_key);
-	std::vector<unsigned char> decrypt_message(const std::vector<unsigned char>& encrypted_message,
+	std::vector<unsigned char> decrypt_message(std::vector<unsigned char>& encrypted_message,
 		const std::vector<unsigned char>& sender_public_key,
 		const std::vector<unsigned char>& receiver_secret_key,
 		bool& decrypt_failure);

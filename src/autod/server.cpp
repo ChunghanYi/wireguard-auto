@@ -231,27 +231,6 @@ void WgacServer::remove_wireguard(const uint8_t* public_key) {
  */
 void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 	switch (rmsg.type) {
-		case AUTOCONN::PREPARE:
-			spdlog::info(">>> PREPARE message received.");
-			{
-				uint8_t key[WG_KEY_LEN] {};
-				if (!key_from_base64(key, reinterpret_cast<const char*>(rmsg.public_key))) {
-					spdlog::warn("Public key is not the correct length or format");
-					send_NOK(client);
-					client.setPrepared(false);
-				} else {
-					client.setPreparePublicKey(key);
-
-					message_t smsg {};
-					smsg.type = AUTOCONN::PREPARE;
-					std::memcpy(smsg.public_key,
-							wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
-					send_PREPARE(client, smsg);
-					client.setPrepared(true);
-				}
-			}
-			break;
-
 		case AUTOCONN::HELLO:
 			spdlog::info(">>> HELLO message received.");
 			if (add_peer_table(rmsg)) {
@@ -346,7 +325,6 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			} else {
 				send_NOK(client);
 			}
-			client.setPrepared(false); /* for a new connection from client */
 			break;
 
 		default:
@@ -359,7 +337,6 @@ void WgacServer::handleClientMsg(Client& client, const message_t& rmsg) {
 			send_BYE(client, smsg);
 
 			client.setConnected(false);
-			client.setPrepared(false);
 			break;
 	}
 }
@@ -534,7 +511,6 @@ pipe_ret_t WgacServer::sendToClient(const std::string& clientIP, unsigned char* 
 	return sendToClient(client, msg, size);
 }
 
-#ifdef GENERIC_CLIENTS
 // Let's convert message_t structure to string
 /* Golang syntax
 	type Message struct {
@@ -552,9 +528,7 @@ std::string convert_message2string(const message_t& msg, size_t size) {
 	std::string total_s {}, s {};
 	char buffer[512] {};
 
-	if (msg.type == AUTOCONN::PREPARE)
-		total_s = "cmd:=PREPARE\n";
-	else if (msg.type == AUTOCONN::HELLO)
+	if (msg.type == AUTOCONN::HELLO)
 		total_s = "cmd:=HELLO\n";
 	else if (msg.type == AUTOCONN::PING)
 		total_s = "cmd:=PING\n";
@@ -597,20 +571,13 @@ std::string convert_message2string(const message_t& msg, size_t size) {
 	std::string allowed(reinterpret_cast<const char*>(msg.allowed_ips));
 	total_s = total_s + "allowedips:=" + allowed + "\n";
 
-#if 0
-	std::cout << "total_s --------> [" << total_s << "]" << std::endl;
-	std::cout << "length --------> [" << total_s.length() << "]" << std::endl;
-#endif
-
 	return total_s;
 }
-#endif
 
 /**
  * Send message to specific client (determined by client IP address) with OK or NOK string.
  */
 bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
-#ifdef GENERIC_CLIENTS
 	std::string total_s = convert_message2string(msg, sizeof(message_t));
 	const char* buf_ptr = total_s.c_str();
 	try {
@@ -619,16 +586,6 @@ bool WgacServer::sendMessage(const Client& client, const message_t& msg) {
 		spdlog::info("<<< Oops message sending is failed.");
 		return false;
 	}
-#else
-	message_t smsg {};
-	std::memcpy(&smsg, &msg, sizeof(message_t));
-	try {
-		client.send(reinterpret_cast<const char *>(&smsg), sizeof(smsg));
-	} catch (const std::runtime_error &error) {
-		spdlog::info("<<< Oops message sending is failed.");
-		return false;
-	}
-#endif
 
 	return true;
 }

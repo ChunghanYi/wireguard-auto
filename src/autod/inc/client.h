@@ -32,15 +32,13 @@ public:
 	void setConnected(bool flag) { _isConnected = flag; }
 
 	/* for <PREPARE> stage */
-	bool isPrepared() const { return _isPrepared; }
-	void setPrepared(bool flag) { _isPrepared = flag; }
 	const std::vector<unsigned char>& getPreparePublicKey() const { return _prepare_public_key; }
 	void setPreparePublicKey(uint8_t* key) {
 		_prepare_public_key.assign(key, key + WG_KEY_LEN);
 	}
 
 	void startListen();
-	void send(const char* msg, size_t msgSize) const;
+	void send(const char* msg, size_t msg_len) const;
 	void close();
 	void print() const;
 
@@ -59,6 +57,5 @@ private:
 	client_event_handler_t _eventHandlerCallback;
 
 	/* for <PREPARE> stage */
-	std::atomic<bool> _isPrepared = false;
 	std::vector<unsigned char> _prepare_public_key;
 };

@@ -19,7 +19,6 @@
 #include "inc/message.h"
 #include "spdlog/spdlog.h"
 
-#ifdef GENERIC_CLIENTS
 namespace parser
 {
 bool stringToUint16(const std::string& str, uint16_t& result) {
@@ -67,7 +66,7 @@ std::vector<std::string> splitString(const std::string& str, const std::string& 
  *   epport:=51280\n
  *   allowedips:=10.1.1.0/24,192.168.1.0\n
 */
-bool parse_Go_message_string(char* rbuf, message_t* rmsg) {
+bool parse_new_message_string(char* rbuf, message_t* rmsg) {
 	std::string text = rbuf;
 	std::string delimiter = "\n";
 	std::vector<std::string> msgtokens = splitString(text, delimiter);
@@ -78,8 +77,7 @@ bool parse_Go_message_string(char* rbuf, message_t* rmsg) {
 		std::vector<std::string> msgFields = splitString(token, ":=");
 
 		if (msgFields[0] == "cmd") {
-			if (msgFields[1] == "PREPARE") rmsg->type = AUTOCONN::PREPARE;				
-			else if (msgFields[1] == "HELLO") rmsg->type = AUTOCONN::HELLO;				
+			if (msgFields[1] == "HELLO") rmsg->type = AUTOCONN::HELLO;				
 			else if (msgFields[1] == "PING") rmsg->type = AUTOCONN::PING;				
 			else if (msgFields[1] == "PONG") rmsg->type = AUTOCONN::PONG;				
 			else if (msgFields[1] == "OK") rmsg->type = AUTOCONN::OK;				
@@ -158,4 +156,3 @@ bool parse_Go_message_string(char* rbuf, message_t* rmsg) {
 }
 
 }
-#endif

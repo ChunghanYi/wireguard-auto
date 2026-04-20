@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.22.1)
 project(wgac)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++17")
+#set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++17")
 
 add_library(wg STATIC IMPORTED)
 set_target_properties(wg
@@ -37,10 +37,10 @@ include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
                     ${CMAKE_SOURCE_DIR}/external/boost_1_88_0
                     ${CMAKE_SOURCE_DIR}/external/libsodium-stable/output/include)
 
-#add_definitions(-DVTYSH)
+#wireguard-c daemon for client
+#add_definitions(-DWIREGUARD_C_DAEMON)
 add_definitions(-DREDIS)
-add_definitions(-DGENERIC_CLIENTS) 
-#add_definitions(-DAUTHENTICATED_ENCRYPTION)
+add_definitions(-DAUTHENTICATED_ENCRYPTION)
 
 #server ---------------------------------------------------------------------------
 add_executable(wg_autod

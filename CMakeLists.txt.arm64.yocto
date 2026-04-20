@@ -40,8 +40,7 @@ include_directories(${CMAKE_SOURCE_DIR}/external/lib/include
 #wireguard-c daemon for client
 #add_definitions(-DWIREGUARD_C_DAEMON)
 add_definitions(-DREDIS)
-add_definitions(-DGENERIC_CLIENTS)
-#add_definitions(-DAUTHENTICATED_ENCRYPTION)
+add_definitions(-DAUTHENTICATED_ENCRYPTION)
 
 #server ---------------------------------------------------------------------------
 add_executable(wg_autod

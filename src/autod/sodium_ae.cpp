@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "inc/server.h"
 #include "spdlog/spdlog.h"
 
 namespace sodium_ae
@@ -62,30 +63,49 @@ std::vector<unsigned char> encrypt_message(const std::vector<unsigned char>& mes
 	int ret = crypto_box_easy(ciphertext.data(), message.data(), message.size(), nonce.data(),
 			receiver_public_key.data(), sender_secret_key.data());
 
+
+	//payload length(4 bytes) | NONCE(24 bytes) | ciphertex + MAC(16 bytes)
 	std::vector<unsigned char> result;
+
+	uint32_t payload_len = sizeof(nonce) + message.size() + crypto_box_MACBYTES;
+	uint32_t net_len = htonl(payload_len);
+	const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&net_len);
+    result.insert(result.end(), bytes, bytes + sizeof(uint32_t));
+
 	result.insert(result.end(), nonce.begin(), nonce.end());
 	result.insert(result.end(), ciphertext.begin(), ciphertext.end());
 	return result;
 }
 
 // Decrypt a message
-std::vector<unsigned char> decrypt_message(const std::vector<unsigned char>& encrypted_message,
+std::vector<unsigned char> decrypt_message(std::vector<unsigned char>& encrypted_message,
                                             const std::vector<unsigned char>& sender_public_key,
                                             const std::vector<unsigned char>& receiver_secret_key,
 											bool& decrypt_failure) {
-	if (encrypted_message.size() < crypto_box_NONCEBYTES + crypto_box_MACBYTES) {
+	if (encrypted_message.size() < 4 + crypto_box_NONCEBYTES + crypto_box_MACBYTES) {
 		decrypt_failure = true;
 		spdlog::warn("Invalid ciphertext size.");
+		std::cout << "Invalid ciphertext size." << std::endl;
 	}
 
-	std::vector<unsigned char> nonce(encrypted_message.begin(), encrypted_message.begin() + crypto_box_NONCEBYTES);
-	std::vector<unsigned char> ciphertext(encrypted_message.begin() + crypto_box_NONCEBYTES, encrypted_message.end());
+	uint32_t payload_len = ntohl(*reinterpret_cast<uint32_t*>(encrypted_message.data()));
+	if (encrypted_message.size() < 4 + payload_len) {
+		decrypt_failure = true;
+		spdlog::warn("received_bytes < 4 + payload_len");
+		std::cout << "received_bytes < 4 + payload_len" << std::endl;
+	}
+
+	std::vector<unsigned char> nonce(encrypted_message.begin() + 4, encrypted_message.begin() + 4 + crypto_box_NONCEBYTES);
+	std::vector<unsigned char> ciphertext(encrypted_message.begin() + 4 + crypto_box_NONCEBYTES, encrypted_message.end());
 
 	std::vector<unsigned char> decrypted_message(ciphertext.size() - crypto_box_MACBYTES);
-	if (crypto_box_open_easy(decrypted_message.data(), ciphertext.data(), ciphertext.size(), nonce.data(),
-				sender_public_key.data(), receiver_secret_key.data()) != 0) {
-		decrypt_failure = true;
-		spdlog::warn("Message decryption failed.");
+
+	if (!decrypt_failure) {
+		if (crypto_box_open_easy(decrypted_message.data(), ciphertext.data(), ciphertext.size(), nonce.data(),
+					sender_public_key.data(), receiver_secret_key.data()) != 0) {
+			decrypt_failure = true;
+			spdlog::warn("Message decryption failed.");
+		}
 	}
 	return decrypted_message;
 }

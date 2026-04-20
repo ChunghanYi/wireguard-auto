@@ -16,7 +16,7 @@
 ////////////////////////////////////////////////////////////
 std::unique_ptr<WgacClient> wgaccPtr;
 const std::string prog_name { "wg_autoc" };
-const std::string versionString { "v0.8.50" };
+const std::string versionString { "v0.8.90" };
 ////////////////////////////////////////////////////////////
 
 static void sig_exit(int s) {
