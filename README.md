@@ -2,7 +2,7 @@
 WireGuard AutoConnect Client &amp; Server implemented with Modern C++
 
 ```
-It's currently in development(v0.8.00). 😎
+It's currently in development(v0.8.90). 😎
 
 ```
 
@@ -160,6 +160,9 @@ The wg_autoc daemon retries the connection with the server when it receives the 
   For more information, please refer to my blog post below.<br>
   https://slowbootkernelhacks.blogspot.com/2025/01/modern-c-quantum-resistant-wireguard.html
   <br>
+
+<img src="./external/images/wireguard_auto_protocol.png" width="50%">
+<br>
 
 ## Reference codes
 ```
