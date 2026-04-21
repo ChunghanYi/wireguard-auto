@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# libsodium 바인딩 라이브러리 추가
 sodiumoxide = "0.2.7"
+base64 = "0.22.1"
+clap = { version = "4.4", features = ["derive"] }
+daemonize = "0.5"
 
-# 서버 실행 파일 타겟
 [[bin]]
 name = "server"
 path = "src/server.rs"
 
-# 클라이언트 실행 파일 타겟
 [[bin]]
 name = "client"
 path = "src/client.rs"

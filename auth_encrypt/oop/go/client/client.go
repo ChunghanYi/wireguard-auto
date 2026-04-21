@@ -8,10 +8,14 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"os/exec"
 
 	"golang.org/x/crypto/nacl/box"
 )
@@ -20,10 +24,10 @@ const (
 	LengthSize = 4
 	NonceSize  = 24
 	KeySize    = 32
+	B64KeySize = 44
 	BufferSize = 4096
 )
 
-// 클라이언트 연결과 키 상태를 관리하는 구조체
 type AuthClient struct {
 	conn         net.Conn
 	privKey      *[32]byte
@@ -44,11 +48,18 @@ func (c *AuthClient) Connect(addr string) error {
 	if err != nil { return err }
 	c.conn = conn
 
-	// 키 교환
-	c.conn.Write(c.pubKey[:])
-	
+	// 1. 클라이언트 공개키 Base64 인코딩 후 전송
+	clientPubKeyB64 := make([]byte, B64KeySize)
+	base64.StdEncoding.Encode(clientPubKeyB64, c.pubKey[:])
+	c.conn.Write(clientPubKeyB64)
+
+	// 2. 서버 공개키 수신 (Base64) 및 디코딩
+	serverPubKeyB64 := make([]byte, B64KeySize)
+	_, err = io.ReadFull(c.conn, serverPubKeyB64)
+	if err != nil { return err }
+
 	c.serverPubKey = new([KeySize]byte)
-	_, err = io.ReadFull(c.conn, c.serverPubKey[:])
+	_, err = base64.StdEncoding.Decode(c.serverPubKey[:], serverPubKeyB64)
 	return err
 }
 
@@ -58,7 +69,7 @@ func (c *AuthClient) SendAndReceive(message string) {
 
 	encrypted := box.Seal(nil, []byte(message), &nonce, c.serverPubKey, c.privKey)
 	payloadLen := uint32(len(nonce) + len(encrypted))
-	
+
 	sendBuf := make([]byte, LengthSize+payloadLen)
 	binary.BigEndian.PutUint32(sendBuf[:LengthSize], payloadLen)
 	copy(sendBuf[LengthSize:LengthSize+NonceSize], nonce[:])
@@ -90,10 +101,28 @@ func (c *AuthClient) Close() {
 }
 
 func main() {
+	ip := flag.String("i", "127.0.0.1", "Server IP")
+	port := flag.String("p", "51822", "Server port")
+	daemon := flag.Bool("d", false, "Run in daemon mode")
+	flag.Parse()
+
+	if *daemon {
+		args := make([]string, 0)
+		for _, arg := range os.Args[1:] {
+			if arg != "-d" && arg != "--d" {
+				args = append(args, arg)
+			}
+		}
+		cmd := exec.Command(os.Args[0], args...)
+		cmd.Start()
+		os.Exit(0)
+	}
+
 	client := NewAuthClient()
 	defer client.Close()
 
-	if err := client.Connect("127.0.0.1:51822"); err != nil {
+	addr := *ip + ":" + *port
+	if err := client.Connect(addr); err != nil {
 		fmt.Println("❌ 연결 실패:", err)
 		return
 	}
