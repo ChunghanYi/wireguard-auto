@@ -156,6 +156,14 @@ $ killall -USR1 wg_autoc
 The wg_autoc daemon retries the connection with the server when it receives the SIGUSR1 signal.
 ```
 
+## How to run wireguard client with autoconnect feature on Windows 11
+  For more information, please refer to my blog post below.<br>
+  https://slowbootkernelhacks.blogspot.com/2025/08/wireguard-windows.html
+  <br>
+
+<img src="./external/images/wireguard_windows_auto_connect.png" width="50%">
+<br>
+
 ## My blog posting for this project
   For more information, please refer to my blog post below.<br>
   https://slowbootkernelhacks.blogspot.com/2025/01/modern-c-quantum-resistant-wireguard.html
