@@ -88,15 +88,15 @@ void Client::send(const char* msg, size_t msg_len) const {
  */
 void Client::receiveTask() {
 	//step#1: Let's exchange public key
-	uint8_t client_pk_base64[WG_KEY_LEN_BASE64];
-	if (!recv_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64))) {
+	uint8_t client_pk_base64[WG_KEY_LEN_BASE64] {};
+	if (!recv_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64)-1)) {
 		std::cerr << "Client public key reception failed" << std::endl;
 		setConnected(false);
 		return;
 	}
 	//std::cout << "client_pk_base64 --> " << client_pk_base64 << std::endl;
 
-	uint8_t client_pk[crypto_box_PUBLICKEYBYTES];
+	uint8_t client_pk[crypto_box_PUBLICKEYBYTES] {};
 	if (!key_from_base64(client_pk, reinterpret_cast<const char*>(client_pk_base64))) {
 		std::cerr << "Public key is not the correct length or format" << std::endl;
 		setConnected(false);
@@ -104,11 +104,11 @@ void Client::receiveTask() {
 	} else {
 		setPreparePublicKey(client_pk);
 
-		uint8_t server_pk_base64[WG_KEY_LEN_BASE64];
+		uint8_t server_pk_base64[WG_KEY_LEN_BASE64] {};
 		std::memcpy(server_pk_base64,
 				wgacsPtr->getConfig().getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-		if (!send_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64))) {
+		if (!send_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64)-1)) {
 			std::cerr << "Server public key transmission failed" << std::endl;
 			setConnected(false);
 			return;

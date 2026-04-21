@@ -407,28 +407,28 @@ void WgacClient::remove_wireguard(message_t* rmsg) {
  * Start PING-PONG negotiations
  */
 void WgacClient::start() {
-	message_t rmsg;
+	message_t rmsg {};
 	int count {};
 	enum AUTOCONN flag { AUTOCONN::HELLO };
 
 	//step#1: Let's exchange public key
-	uint8_t client_pk_base64[WG_KEY_LEN_BASE64];
+	uint8_t client_pk_base64[WG_KEY_LEN_BASE64] {};
 	std::memcpy(client_pk_base64, _config.getstr("this_public_key").c_str(), WG_KEY_LEN_BASE64);
 
-	if (!send_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64))) {
+	if (!send_all(_sockfd.get(), client_pk_base64, sizeof(client_pk_base64)-1)) {
 		std::cerr << "Client public key transmission failed" << std::endl;
 		return;
 	}
 	//std::cout << "client_pk_base64 --> " << client_pk_base64 << std::endl;
 
-	uint8_t server_pk_base64[WG_KEY_LEN_BASE64];
-	if (!recv_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64))) {
+	uint8_t server_pk_base64[WG_KEY_LEN_BASE64] {};
+	if (!recv_all(_sockfd.get(), server_pk_base64, sizeof(server_pk_base64)-1)) {
 		std::cerr << "Server public key reception failed" << std::endl;
 		return;
 	}
 	//std::cout << "server_pk_base64 --> " << server_pk_base64 << std::endl;
 
-	uint8_t server_pk[crypto_box_PUBLICKEYBYTES];
+	uint8_t server_pk[crypto_box_PUBLICKEYBYTES] {};
 	if (!key_from_base64(server_pk, reinterpret_cast<const char*>(server_pk_base64))) {
 		std::cerr << "Public key is not the correct length or format" << std::endl;
 		return;
