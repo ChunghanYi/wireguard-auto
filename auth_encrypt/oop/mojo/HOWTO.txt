@@ -1,0 +1,20 @@
+$ pixi add mojo
+$ pixi add pynacl
+$ pixi shell
+$ mojo --version
+Mojo 0.26.3.0.dev2026042505 (5240cea2)
+
+(mojo) chyi@earth:~/Mojo/mojo$ mojo build server.mojo -o server
+(mojo) chyi@earth:~/Mojo/mojo$ mojo build client.mojo -o client
+
+[on terminal#1]
+================
+$ ./server
+🚀 Mojo 서버가 포트 51823 에서 대기 중입니다...
+[Client ('127.0.0.1', 34658) ] 🔓 안녕하세요! std.python 임포트까지 완벽히 적용된 클라이언트입니다.
+
+[on terminal#2]
+================
+$ ./client
+🔒 암호화된 메시지 전송 성공 (Mojo)!
+🔓 서버로부터의 응답: 서버에서 보내는 암호화된 응답입니다! (Mojo Server)

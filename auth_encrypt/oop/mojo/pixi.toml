@@ -1,0 +1,13 @@
+[workspace]
+authors = ["Chunghan Yi <chunghan.yi@gmail.com>"]
+channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name = "mojo"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+mojo = "*"
+python = "==3.10.12"
+pynacl = ">=1.6.2,<2"
