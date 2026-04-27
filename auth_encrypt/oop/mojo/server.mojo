@@ -1,3 +1,10 @@
+"""
+   SPDX-License-Identifier: MIT
+
+   Authenticated Encryption/Decryption examples using PyNacl library
+   Key exchange: X25519, Encryption: XSalsa20, Authentication: Poly1305
+"""
+
 from std.python import Python, PythonObject
 
 def handle_client(conn: PythonObject, addr: PythonObject) raises:
